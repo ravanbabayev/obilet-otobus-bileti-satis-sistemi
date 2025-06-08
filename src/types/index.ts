@@ -55,8 +55,8 @@ export interface Sefer {
   otobus_id: number;
   kalkis_istasyon_id: number;
   varis_istasyon_id: number;
-  kalkis_zamani: Date;
-  varis_zamani: Date;
+  kalkis_zamani: string;  // API'den string olarak gelir
+  varis_zamani: string;   // API'den string olarak gelir
   mesafe: number;
   temel_ucret: number;
   aktif_mi: boolean;

@@ -251,7 +251,7 @@ export default function ProfilPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Profil Ayarları</h1>
@@ -260,67 +260,67 @@ export default function ProfilPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           {/* Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl shadow-sm p-6">
               {/* Profil Özeti */}
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full mb-4">
-                  <User className="w-10 h-10 text-blue-600" />
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-24 h-24 bg-blue-100 rounded-full mb-4">
+                  <User className="w-12 h-12 text-blue-600" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-xl font-semibold text-gray-900 mb-1">
                   {kullanici?.ad} {kullanici?.soyad}
                 </h3>
-                <p className="text-sm text-gray-600">{kullanici?.email}</p>
-                <div className="flex items-center justify-center mt-2">
+                <p className="text-sm text-gray-600 mb-3">{kullanici?.email}</p>
+                <div className="flex items-center justify-center">
                   <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
-                  <span className="text-sm text-green-600">Doğrulanmış Hesap</span>
+                  <span className="text-sm text-green-600 font-medium">Doğrulanmış Hesap</span>
                 </div>
               </div>
 
               {/* Tab Menü */}
-              <nav className="space-y-2">
+              <nav className="space-y-3">
                 <button
                   onClick={() => setActiveTab('bilgiler')}
-                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-colors ${
+                  className={`w-full flex items-center px-5 py-4 rounded-lg text-left transition-colors ${
                     activeTab === 'bilgiler'
                       ? 'bg-blue-50 text-blue-700 border border-blue-200'
                       : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   <User className="w-5 h-5 mr-3" />
-                  Kişisel Bilgiler
+                  <span className="font-medium">Kişisel Bilgiler</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('sifre')}
-                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-colors ${
+                  className={`w-full flex items-center px-5 py-4 rounded-lg text-left transition-colors ${
                     activeTab === 'sifre'
                       ? 'bg-blue-50 text-blue-700 border border-blue-200'
                       : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   <Lock className="w-5 h-5 mr-3" />
-                  Şifre Değiştir
+                  <span className="font-medium">Şifre Değiştir</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('ayarlar')}
-                  className={`w-full flex items-center px-4 py-3 rounded-lg text-left transition-colors ${
+                  className={`w-full flex items-center px-5 py-4 rounded-lg text-left transition-colors ${
                     activeTab === 'ayarlar'
                       ? 'bg-blue-50 text-blue-700 border border-blue-200'
                       : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   <Settings className="w-5 h-5 mr-3" />
-                  Hesap Ayarları
+                  <span className="font-medium">Hesap Ayarları</span>
                 </button>
               </nav>
             </div>
           </div>
 
           {/* İçerik Alanı */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="lg:col-span-4">
+            <div className="bg-white rounded-xl shadow-sm p-8">
               {/* Kişisel Bilgiler Tab */}
               {activeTab === 'bilgiler' && (
                 <div>
@@ -329,8 +329,8 @@ export default function ProfilPage() {
                     <h2 className="text-xl font-semibold text-gray-900">Kişisel Bilgiler</h2>
                   </div>
 
-                  <form onSubmit={handleSubmitProfil(handleProfilGuncelle)} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <form onSubmit={handleSubmitProfil(handleProfilGuncelle)} className="space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {/* Ad */}
                       <div>
                         <label htmlFor="ad" className="block text-sm font-medium text-gray-700 mb-2">
@@ -340,8 +340,9 @@ export default function ProfilPage() {
                           {...registerProfil('ad')}
                           type="text"
                           id="ad"
+                          placeholder="Adınızı girin"
                           className={`
-                            block w-full px-3 py-3 border rounded-lg shadow-sm placeholder-gray-400 
+                            block w-full px-4 py-3 border rounded-lg shadow-sm text-gray-900 placeholder-gray-500
                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                             ${profilErrors.ad ? 'border-red-300' : 'border-gray-300'}
                           `}
@@ -360,8 +361,9 @@ export default function ProfilPage() {
                           {...registerProfil('soyad')}
                           type="text"
                           id="soyad"
+                          placeholder="Soyadınızı girin"
                           className={`
-                            block w-full px-3 py-3 border rounded-lg shadow-sm placeholder-gray-400 
+                            block w-full px-4 py-3 border rounded-lg shadow-sm text-gray-900 placeholder-gray-500
                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                             ${profilErrors.soyad ? 'border-red-300' : 'border-gray-300'}
                           `}
@@ -385,8 +387,9 @@ export default function ProfilPage() {
                           {...registerProfil('email')}
                           type="email"
                           id="email"
+                          placeholder="Email adresinizi girin"
                           className={`
-                            block w-full pl-10 pr-3 py-3 border rounded-lg shadow-sm placeholder-gray-400 
+                            block w-full pl-10 pr-4 py-3 border rounded-lg shadow-sm text-gray-900 placeholder-gray-500
                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                             ${profilErrors.email ? 'border-red-300' : 'border-gray-300'}
                           `}
@@ -410,8 +413,9 @@ export default function ProfilPage() {
                           {...registerProfil('telefon')}
                           type="tel"
                           id="telefon"
+                          placeholder="Telefon numaranızı girin"
                           className={`
-                            block w-full pl-10 pr-3 py-3 border rounded-lg shadow-sm placeholder-gray-400 
+                            block w-full pl-10 pr-4 py-3 border rounded-lg shadow-sm text-gray-900 placeholder-gray-500
                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                             ${profilErrors.telefon ? 'border-red-300' : 'border-gray-300'}
                           `}
@@ -423,7 +427,9 @@ export default function ProfilPage() {
                     </div>
 
                     {/* Değiştirilemeyen Bilgiler */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-gray-50 rounded-lg p-6 mt-8">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Değiştirilemeyen Bilgiler</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           TC Kimlik No
@@ -432,7 +438,7 @@ export default function ProfilPage() {
                           type="text"
                           value={kullanici?.tc_kimlik_no || ''}
                           disabled
-                          className="block w-full px-3 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                         />
                       </div>
 
@@ -444,7 +450,7 @@ export default function ProfilPage() {
                           type="date"
                           value={kullanici?.dogum_tarihi || ''}
                           disabled
-                          className="block w-full px-3 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                         />
                       </div>
 
@@ -456,12 +462,13 @@ export default function ProfilPage() {
                           type="text"
                           value={kullanici?.cinsiyet === 'E' ? 'Erkek' : 'Kadın'}
                           disabled
-                          className="block w-full px-3 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                          className="block w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
                         />
+                      </div>
                       </div>
                     </div>
 
-                    <div className="pt-4">
+                    <div className="pt-6">
                       <button
                         type="submit"
                         disabled={profilLoading}
@@ -499,7 +506,7 @@ export default function ProfilPage() {
                     <h2 className="text-xl font-semibold text-gray-900">Şifre Değiştir</h2>
                   </div>
 
-                  <form onSubmit={handleSubmitSifre(handleSifreDegiştir)} className="space-y-6">
+                  <form onSubmit={handleSubmitSifre(handleSifreDegiştir)} className="space-y-8">
                     {/* Mevcut Şifre */}
                     <div>
                       <label htmlFor="mevcut_sifre" className="block text-sm font-medium text-gray-700 mb-2">
@@ -511,7 +518,7 @@ export default function ProfilPage() {
                           type={sifreGoster ? 'text' : 'password'}
                           id="mevcut_sifre"
                           className={`
-                            block w-full pl-3 pr-10 py-3 border rounded-lg shadow-sm placeholder-gray-400 
+                            block w-full pl-4 pr-10 py-3 border rounded-lg shadow-sm text-gray-900 placeholder-gray-500
                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                             ${sifreErrors.mevcut_sifre ? 'border-red-300' : 'border-gray-300'}
                           `}
@@ -534,7 +541,7 @@ export default function ProfilPage() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {/* Yeni Şifre */}
                       <div>
                         <label htmlFor="yeni_sifre" className="block text-sm font-medium text-gray-700 mb-2">
@@ -546,7 +553,7 @@ export default function ProfilPage() {
                             type={yeniSifreGoster ? 'text' : 'password'}
                             id="yeni_sifre"
                             className={`
-                              block w-full pl-3 pr-10 py-3 border rounded-lg shadow-sm placeholder-gray-400 
+                              block w-full pl-4 pr-10 py-3 border rounded-lg shadow-sm text-gray-900 placeholder-gray-500
                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                               ${sifreErrors.yeni_sifre ? 'border-red-300' : 'border-gray-300'}
                             `}
@@ -579,7 +586,7 @@ export default function ProfilPage() {
                           type={yeniSifreGoster ? 'text' : 'password'}
                           id="yeni_sifre_tekrar"
                           className={`
-                            block w-full px-3 py-3 border rounded-lg shadow-sm placeholder-gray-400 
+                            block w-full px-4 py-3 border rounded-lg shadow-sm text-gray-900 placeholder-gray-500
                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                             ${sifreErrors.yeni_sifre_tekrar ? 'border-red-300' : 'border-gray-300'}
                           `}
@@ -602,7 +609,7 @@ export default function ProfilPage() {
                       </ul>
                     </div>
 
-                    <div className="pt-4">
+                    <div className="pt-6">
                       <button
                         type="submit"
                         disabled={sifreLoading}

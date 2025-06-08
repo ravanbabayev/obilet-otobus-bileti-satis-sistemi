@@ -106,7 +106,7 @@ export default function GirisPage() {
                     id="email"
                     autoComplete="email"
                     className={`
-                      block w-full pl-10 pr-3 py-3 border rounded-lg shadow-sm placeholder-gray-400 
+                      block w-full pl-10 pr-4 py-3 border rounded-lg shadow-sm text-gray-900 placeholder-gray-500
                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                       ${errors.email ? 'border-red-300' : 'border-gray-300'}
                     `}
@@ -133,7 +133,7 @@ export default function GirisPage() {
                     id="sifre"
                     autoComplete="current-password"
                     className={`
-                      block w-full pl-10 pr-10 py-3 border rounded-lg shadow-sm placeholder-gray-400 
+                      block w-full pl-10 pr-10 py-3 border rounded-lg shadow-sm text-gray-900 placeholder-gray-500
                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
                       ${errors.sifre ? 'border-red-300' : 'border-gray-300'}
                     `}

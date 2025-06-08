@@ -119,13 +119,13 @@ export default function BiletAramaForm() {
               id="kalkis_il"
               value={formData.kalkis_il}
               onChange={(e) => handleInputChange('kalkis_il', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 ${
+              className={`w-full px-4 py-3 border rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 ${
                 errors.kalkis_il ? 'border-red-500' : 'border-gray-300'
               }`}
             >
               <option value="">Şehir seçiniz</option>
-              {sehirler.map(sehir => (
-                <option key={sehir} value={sehir}>{sehir}</option>
+              {sehirler.map((sehir, index) => (
+                <option key={`kalkis-${index}-${sehir}`} value={sehir}>{sehir}</option>
               ))}
             </select>
             {errors.kalkis_il && (
@@ -157,13 +157,13 @@ export default function BiletAramaForm() {
               id="varis_il"
               value={formData.varis_il}
               onChange={(e) => handleInputChange('varis_il', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 ${
+              className={`w-full px-4 py-3 border rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 ${
                 errors.varis_il ? 'border-red-500' : 'border-gray-300'
               }`}
             >
               <option value="">Şehir seçiniz</option>
-              {sehirler.map(sehir => (
-                <option key={sehir} value={sehir}>{sehir}</option>
+              {sehirler.map((sehir, index) => (
+                <option key={`varis-${index}-${sehir}`} value={sehir}>{sehir}</option>
               ))}
             </select>
             {errors.varis_il && (
@@ -185,7 +185,7 @@ export default function BiletAramaForm() {
               value={formData.tarih}
               min={today}
               onChange={(e) => handleInputChange('tarih', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 ${
+              className={`w-full px-4 py-3 border rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 ${
                 errors.tarih ? 'border-red-500' : 'border-gray-300'
               }`}
             />

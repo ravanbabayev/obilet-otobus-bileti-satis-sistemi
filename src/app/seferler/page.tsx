@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import BiletAramaForm from '@/components/BiletAramaForm';
 import { Clock, MapPin, Bus, Users, Wifi, Monitor, Wind, ArrowRight } from 'lucide-react';
 import { Sefer } from '@/types';
@@ -47,7 +45,15 @@ export default function SeferlerPage() {
         throw new Error(result.error || 'Seferler yüklenirken hata oluştu');
       }
 
-      setSeferler(result.data || []);
+      // API'den dönen veri nested array formatında olabilir
+      let seferData = result.data || [];
+      
+      // Eğer data array içinde array varsa, ilk array'i al (MySQL stored procedure response format)
+      if (Array.isArray(seferData) && seferData.length > 0 && Array.isArray(seferData[0])) {
+        seferData = seferData[0];
+      }
+
+      setSeferler(seferData);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -88,43 +94,88 @@ export default function SeferlerPage() {
   };
 
   const formatTime = (dateString: string) => {
-    return format(new Date(dateString), 'HH:mm');
+    try {
+      if (!dateString || dateString === 'undefined' || dateString === 'null') return '--:--';
+      // Handle string dates like "2024-06-09 08:00:00"
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        // Try parsing manually for MySQL format
+        const matches = dateString.match(/(\d{4}-\d{2}-\d{2})\s(\d{2}:\d{2}:\d{2})/);
+        if (matches) {
+          const [, datePart, timePart] = matches;
+          const [hours, minutes] = timePart.split(':');
+          return `${hours}:${minutes}`;
+        }
+        return '--:--';
+      }
+      return format(date, 'HH:mm');
+    } catch (error) {
+      console.error('formatTime error:', error, dateString);
+      return '--:--';
+    }
   };
 
   const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'dd MMMM yyyy', { locale: tr });
+    try {
+      if (!dateString || dateString === 'undefined' || dateString === 'null') return 'Geçersiz tarih';
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        // Try parsing date string manually for formats like "2024-06-09"
+        const matches = dateString.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (matches) {
+          const [, year, month, day] = matches;
+          const parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          if (!isNaN(parsedDate.getTime())) {
+            return format(parsedDate, 'dd MMMM yyyy', { locale: tr });
+          }
+        }
+        return 'Geçersiz tarih';
+      }
+      return format(date, 'dd MMMM yyyy', { locale: tr });
+    } catch (error) {
+      console.error('formatDate error:', error, dateString);
+      return 'Geçersiz tarih';
+    }
   };
 
   const calculateDuration = (kalkis: string, varis: string) => {
-    const duration = new Date(varis).getTime() - new Date(kalkis).getTime();
-    const hours = Math.floor(duration / (1000 * 60 * 60));
-    const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}s ${minutes}dk`;
+    try {
+      if (!kalkis || !varis) return '--s --dk';
+      const kalkisDate = new Date(kalkis);
+      const varisDate = new Date(varis);
+      
+      if (isNaN(kalkisDate.getTime()) || isNaN(varisDate.getTime())) {
+        return '--s --dk';
+      }
+      
+      const duration = varisDate.getTime() - kalkisDate.getTime();
+      if (duration < 0) return '--s --dk';
+      
+      const hours = Math.floor(duration / (1000 * 60 * 60));
+      const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+      return `${hours}s ${minutes}dk`;
+    } catch (error) {
+      console.error('calculateDuration error:', error, kalkis, varis);
+      return '--s --dk';
+    }
   };
 
   if (!kalkis_il || !varis_il || !tarih) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <main className="py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">Sefer Arama</h1>
-              <p className="text-gray-600 mb-8">Seferleri görüntülemek için arama yapınız.</p>
-              <BiletAramaForm />
-            </div>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Sefer Arama</h1>
+            <p className="text-gray-600 mb-8">Seferleri görüntülemek için arama yapınız.</p>
+            <BiletAramaForm />
           </div>
-        </main>
-        <Footer />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
-      <main className="py-8">
+    <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Search Summary */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
@@ -134,7 +185,7 @@ export default function SeferlerPage() {
                   {kalkis_il} → {varis_il}
                 </h1>
                 <p className="text-gray-600">
-                  {formatDate(tarih)} • {seferler.length} sefer bulundu
+                  {formatDate(tarih!)} • {seferler.length} sefer bulundu
                 </p>
               </div>
               
@@ -166,8 +217,8 @@ export default function SeferlerPage() {
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                   >
                     <option value="">Tüm Firmalar</option>
-                    {getUniqueCompanies().map(company => (
-                      <option key={company} value={company}>{company}</option>
+                    {getUniqueCompanies().map((company, index) => (
+                      <option key={`company-${index}-${company}`} value={company}>{company}</option>
                     ))}
                   </select>
                 </div>
@@ -210,13 +261,13 @@ export default function SeferlerPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredAndSortedSeferler().map((sefer) => (
-                <div key={sefer.sefer_id} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+              {filteredAndSortedSeferler().map((sefer, index) => (
+                <div key={`sefer-${sefer.sefer_id || index}-${index}`} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
                     {/* Company Info */}
                     <div className="lg:col-span-2">
-                      <h3 className="font-semibold text-gray-900">{sefer.firma_adi}</h3>
-                      <p className="text-sm text-gray-600">{sefer.plaka}</p>
+                      <h3 className="font-semibold text-gray-900">{sefer.firma_adi || 'Firma'}</h3>
+                      <p className="text-sm text-gray-600">{sefer.plaka || '---'}</p>
                     </div>
 
                     {/* Route Info */}
@@ -227,7 +278,7 @@ export default function SeferlerPage() {
                             {formatTime(sefer.kalkis_zamani)}
                           </div>
                           <div className="text-sm text-gray-600">
-                            {sefer.kalkis_istasyon_adi}
+                            {sefer.kalkis_istasyon_adi || kalkis_il}
                           </div>
                         </div>
 
@@ -249,7 +300,7 @@ export default function SeferlerPage() {
                             {formatTime(sefer.varis_zamani)}
                           </div>
                           <div className="text-sm text-gray-600">
-                            {sefer.varis_istasyon_adi}
+                            {sefer.varis_istasyon_adi || varis_il}
                           </div>
                         </div>
                       </div>
@@ -267,7 +318,7 @@ export default function SeferlerPage() {
                     {/* Price and Action */}
                     <div className="lg:col-span-2 text-center lg:text-right">
                       <div className="text-2xl font-bold text-red-600 mb-2">
-                        ₺{sefer.temel_ucret}
+                        ₺{sefer.temel_ucret || '0'}
                       </div>
                       <Link
                         href={`/koltuk-secimi?sefer_id=${sefer.sefer_id}`}
@@ -276,9 +327,9 @@ export default function SeferlerPage() {
                         Koltuk Seç
                       </Link>
                     </div>
+                                      </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           )}
 
@@ -288,9 +339,6 @@ export default function SeferlerPage() {
             <BiletAramaForm />
           </div>
         </div>
-      </main>
-
-      <Footer />
     </div>
   );
 } 

@@ -65,51 +65,101 @@ export async function GET(request: NextRequest) {
         const mockData = [
           {
             sefer_id: 1,
+            firma_id: 1,
             otobus_id: 1,
             plaka: '34 ABC 123',
             firma_adi: 'Metro Turizm',
             kalkis_istasyon_id: 1,
-            kalkis_istasyon_adi: 'Büyük Otogar',
+            kalkis_istasyon_adi: 'Büyük İstanbul Otogarı',
             kalkis_il: kalkis_il,
             varis_istasyon_id: 2,
-            varis_istasyon_adi: 'AŞTİ',
+            varis_istasyon_adi: 'Ankara AŞTİ',
             varis_il: varis_il,
             kalkis_zamani: `${tarih} 08:00:00`,
             varis_zamani: `${tarih} 13:00:00`,
-            ucret: 150.00
+            mesafe: 450,
+            temel_ucret: 150.00,
+            aktif_mi: true
           },
           {
             sefer_id: 2,
+            firma_id: 2,
             otobus_id: 2,
             plaka: '06 DEF 456',
             firma_adi: 'Ulusoy',
             kalkis_istasyon_id: 1,
-            kalkis_istasyon_adi: 'Büyük Otogar',
+            kalkis_istasyon_adi: 'Büyük İstanbul Otogarı',
             kalkis_il: kalkis_il,
             varis_istasyon_id: 2,
-            varis_istasyon_adi: 'AŞTİ',
+            varis_istasyon_adi: 'Ankara AŞTİ',
             varis_il: varis_il,
             kalkis_zamani: `${tarih} 10:30:00`,
             varis_zamani: `${tarih} 15:30:00`,
-            ucret: 180.00
+            mesafe: 450,
+            temel_ucret: 180.00,
+            aktif_mi: true
           },
           {
             sefer_id: 3,
+            firma_id: 3,
             otobus_id: 3,
             plaka: '35 GHI 789',
             firma_adi: 'Kamil Koç',
             kalkis_istasyon_id: 1,
-            kalkis_istasyon_adi: 'Büyük Otogar',
+            kalkis_istasyon_adi: 'Büyük İstanbul Otogarı',
             kalkis_il: kalkis_il,
             varis_istasyon_id: 2,
-            varis_istasyon_adi: 'AŞTİ',
+            varis_istasyon_adi: 'Ankara AŞTİ',
             varis_il: varis_il,
             kalkis_zamani: `${tarih} 14:00:00`,
             varis_zamani: `${tarih} 19:00:00`,
-            ucret: 160.00
+            mesafe: 450,
+            temel_ucret: 160.00,
+            aktif_mi: true
+          },
+          {
+            sefer_id: 4,
+            firma_id: 4,
+            otobus_id: 4,
+            plaka: '34 JKL 012',
+            firma_adi: 'Pamukkale',
+            kalkis_istasyon_id: 1,
+            kalkis_istasyon_adi: 'Büyük İstanbul Otogarı',
+            kalkis_il: kalkis_il,
+            varis_istasyon_id: 2,
+            varis_istasyon_adi: 'Ankara AŞTİ',
+            varis_il: varis_il,
+            kalkis_zamani: `${tarih} 16:30:00`,
+            varis_zamani: `${tarih} 21:30:00`,
+            mesafe: 450,
+            temel_ucret: 170.00,
+            aktif_mi: true
+          },
+          {
+            sefer_id: 5,
+            firma_id: 5,
+            otobus_id: 5,
+            plaka: '16 MNO 345',
+            firma_adi: 'Nilüfer',
+            kalkis_istasyon_id: 1,
+            kalkis_istasyon_adi: 'Büyük İstanbul Otogarı',
+            kalkis_il: kalkis_il,
+            varis_istasyon_id: 2,
+            varis_istasyon_adi: 'Ankara AŞTİ',
+            varis_il: varis_il,
+            kalkis_zamani: `${tarih} 20:00:00`,
+            varis_zamani: (() => {
+              const nextDay = new Date(tarih);
+              nextDay.setDate(nextDay.getDate() + 1);
+              return `${nextDay.toISOString().split('T')[0]} 01:00:00`;
+            })(),
+            mesafe: 450,
+            temel_ucret: 140.00,
+            aktif_mi: true
           }
         ];
 
+        console.log('Using mock data for development');
         return NextResponse.json({
           success: true,
           data: mockData,

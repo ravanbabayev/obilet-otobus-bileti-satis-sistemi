@@ -24,3 +24,51 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Input placeholder renklerini daha okunabilir yap */
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280 !important; /* gray-500 */
+  opacity: 1 !important;
+}
+
+/* Tailwind placeholder-gray-400 sınıfını override et */
+.placeholder-gray-400::placeholder {
+  color: #6b7280 !important; /* gray-500 yerine */
+  opacity: 1 !important;
+}
+
+input:focus::placeholder,
+textarea:focus::placeholder {
+  color: #9ca3af !important; /* gray-400 */
+  opacity: 1 !important;
+}
+
+/* Input metinlerini daha koyu yap */
+input,
+textarea,
+select {
+  color: #1f2937 !important; /* gray-800 */
+}
+
+/* Input'larda kullanılan tüm text renklerini override et */
+input:not(:disabled),
+textarea:not(:disabled),
+select:not(:disabled) {
+  color: #111827 !important; /* gray-900 */
+}
+
+/* Focus durumunda da renk korunur */
+input:focus:not(:disabled),
+textarea:focus:not(:disabled),
+select:focus:not(:disabled) {
+  color: #111827 !important; /* gray-900 */
+}
+
+/* Disabled input'ların rengini ayarla */
+input:disabled,
+textarea:disabled,
+select:disabled {
+  color: #6b7280 !important; /* gray-500 */
+  background-color: #f9fafb !important; /* gray-50 */
+}
