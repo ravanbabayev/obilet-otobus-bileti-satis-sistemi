@@ -1,5 +1,3 @@
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 import BiletAramaForm from '@/components/BiletAramaForm';
 import { Shield, Clock, CreditCard, Users, Star, CheckCircle } from 'lucide-react';
 
@@ -58,10 +56,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
-      <main>
+    <div className="bg-gray-50">
         {/* Hero Section */}
         <section className="relative bg-gradient-to-r from-red-600 to-red-800 text-white py-20">
           <div className="absolute inset-0 bg-black opacity-20"></div>
@@ -225,9 +220,6 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-      </main>
-
-      <Footer />
     </div>
   );
 }
