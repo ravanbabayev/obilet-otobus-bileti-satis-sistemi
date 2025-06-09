@@ -146,7 +146,7 @@ export default function BiletlerimPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-center py-12">
             <RefreshCw className="w-8 h-8 animate-spin text-blue-600" />
@@ -157,7 +157,7 @@ export default function BiletlerimPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -305,66 +305,69 @@ export default function BiletlerimPage() {
 
         {/* İptal Modal */}
         {iptalEdilecekBilet && (
-          <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => {
+              setIptalEdilecekBilet(null);
+              setIptalNedeni('');
+            }}></div>
 
-              <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-
-              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                  <div className="sm:flex sm:items-start">
-                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                         <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full">
+                {/* Modal Header */}
+                <div className="p-6">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
                       <X className="h-6 w-6 text-red-600" />
                     </div>
-                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                      <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    <div className="ml-4 flex-1">
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
                         Bilet İptal Et
                       </h3>
-                      <div className="mt-2">
-                        <p className="text-sm text-gray-500 mb-4">
-                          Bu bileti iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
-                        </p>
-                        <div>
-                          <label htmlFor="iptal-nedeni" className="block text-sm font-medium text-gray-700 mb-2">
-                            İptal Nedeni
-                          </label>
-                          <textarea
-                            id="iptal-nedeni"
-                            rows={3}
-                            value={iptalNedeni}
-                            onChange={(e) => setIptalNedeni(e.target.value)}
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
-                            placeholder="İptal nedeninizi açıklayın..."
-                          />
-                        </div>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Bu bileti iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+                      </p>
+                      
+                      {/* İptal Nedeni */}
+                      <div>
+                        <label htmlFor="iptal-nedeni" className="block text-sm font-medium text-gray-700 mb-2">
+                          İptal Nedeni *
+                        </label>
+                        <textarea
+                          id="iptal-nedeni"
+                          rows={3}
+                          value={iptalNedeni}
+                          onChange={(e) => setIptalNedeni(e.target.value)}
+                          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                          placeholder="İptal nedeninizi açıklayın..."
+                          required
+                        />
                       </div>
                     </div>
                   </div>
                 </div>
-                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                  <button
-                    type="button"
-                    disabled={iptalLoading || !iptalNedeni.trim()}
-                    onClick={handleBiletIptal}
-                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    {iptalLoading ? 'İptal Ediliyor...' : 'İptal Et'}
-                  </button>
+
+                {/* Modal Footer */}
+                <div className="bg-gray-50 px-6 py-3 flex flex-col-reverse sm:flex-row sm:justify-end space-y-2 space-y-reverse sm:space-y-0 sm:space-x-3">
                   <button
                     type="button"
                     onClick={() => {
                       setIptalEdilecekBilet(null);
                       setIptalNedeni('');
                     }}
-                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                   >
                     Vazgeç
+                  </button>
+                  <button
+                    type="button"
+                    disabled={iptalLoading || !iptalNedeni.trim()}
+                    onClick={handleBiletIptal}
+                    className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm bg-red-600 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {iptalLoading ? 'İptal Ediliyor...' : 'İptal Et'}
                   </button>
                 </div>
               </div>
             </div>
-          </div>
         )}
       </div>
     </div>
