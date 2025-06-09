@@ -74,6 +74,21 @@ export default function BiletlerimPage() {
   const handleBiletIptal = async () => {
     if (!iptalEdilecekBilet || !iptalNedeni.trim()) return;
 
+    // İptal edilecek bileti bul
+    const bilet = biletler.find(b => b.bilet_id === iptalEdilecekBilet);
+    if (!bilet) {
+      alert('Bilet bulunamadı.');
+      return;
+    }
+
+    // 3 saat kuralını frontend'te de kontrol et
+    if (!iptalEdilebirMi(bilet)) {
+      alert('Bu bilet artık iptal edilemez. İptal işlemi hareket saatinden en az 3 saat öncesine kadar yapılabilir.');
+      setIptalEdilecekBilet(null);
+      setIptalNedeni('');
+      return;
+    }
+
     setIptalLoading(true);
     try {
       const response = await fetch(`/api/biletler/iptal/${iptalEdilecekBilet}`, {
@@ -142,6 +157,22 @@ export default function BiletlerimPage() {
     const saatFarki = (kalkisZamani.getTime() - now.getTime()) / (1000 * 60 * 60);
     
     return saatFarki > 3; // 3 saatten fazla kaldıysa iptal edilebilir
+  };
+
+  const getKalanSure = (bilet: Bilet) => {
+    const now = new Date();
+    const kalkisZamani = new Date(bilet.kalkis_zamani);
+    const saatFarki = (kalkisZamani.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    if (saatFarki <= 0) return 'Sefer başlamış';
+    if (saatFarki <= 3) return `${Math.floor(saatFarki)}s ${Math.floor((saatFarki % 1) * 60)}dk (İptal edilemez)`;
+    
+    const gun = Math.floor(saatFarki / 24);
+    const saat = Math.floor(saatFarki % 24);
+    const dakika = Math.floor((saatFarki % 1) * 60);
+    
+    if (gun > 0) return `${gun}g ${saat}s ${dakika}dk`;
+    return `${saat}s ${dakika}dk`;
   };
 
   if (loading) {
@@ -267,9 +298,22 @@ export default function BiletlerimPage() {
                   </div>
 
                   {/* Satın Alma Tarihi */}
-                  <div className="text-sm text-gray-600 mb-4">
+                  <div className="text-sm text-gray-600 mb-2">
                     Satın Alma: {new Date(bilet.satin_alma_tarihi).toLocaleDateString('tr-TR')} {new Date(bilet.satin_alma_tarihi).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                   </div>
+
+                  {/* Kalan Süre Bilgisi */}
+                  {bilet.bilet_durumu === 'aktif' && (
+                    <div className={`text-sm mb-4 ${iptalEdilebirMi(bilet) ? 'text-green-600' : 'text-orange-600'}`}>
+                      <Clock className="w-4 h-4 inline mr-1" />
+                      Hareket saatine kalan süre: {getKalanSure(bilet)}
+                      {!iptalEdilebirMi(bilet) && (
+                        <div className="text-xs text-red-600 mt-1">
+                          ⚠️ İptal işlemi hareket saatinden 3 saat öncesine kadar yapılabilir
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* İptal Edilme Tarihi */}
                   {bilet.bilet_durumu === 'iptal' && bilet.iptal_tarihi && (
@@ -322,9 +366,14 @@ export default function BiletlerimPage() {
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
                         Bilet İptal Et
                       </h3>
-                      <p className="text-sm text-gray-500 mb-4">
+                      <p className="text-sm text-gray-500 mb-2">
                         Bu bileti iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
                       </p>
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+                        <p className="text-xs text-yellow-800">
+                          <strong>İptal Kuralı:</strong> Bilet iptal işlemi hareket saatinden en az 3 saat öncesine kadar yapılabilir.
+                        </p>
+                      </div>
                       
                       {/* İptal Nedeni */}
                       <div>
