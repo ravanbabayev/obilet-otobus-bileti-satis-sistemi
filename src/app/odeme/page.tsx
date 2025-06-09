@@ -107,16 +107,24 @@ export default function OdemePage() {
 
     setKullanici(JSON.parse(userStr));
 
-    // Mock bilet bilgileri - gerçek uygulamada API'den gelecek
+    // URL'den gelen ücret bilgisini al
+    const ucret = searchParams.get('ucret');
+    
+    if (!ucret) {
+      router.push('/');
+      return;
+    }
+
+    // Bilet bilgilerini oluştur (gerçek uygulamada API'den gelecek)
     setBiletBilgileri({
       sefer_id,
       koltuk_no,
-      ucret: 150.00,
-      firma_adi: 'Metro Turizm',
-      kalkis_istasyon_adi: 'Büyük İstanbul Otogarı',
-      varis_istasyon_adi: 'Ankara AŞTİ',
-      kalkis_zamani: '2024-12-20T08:00:00',
-      varis_zamani: '2024-12-20T13:00:00',
+      ucret: parseFloat(ucret),
+      firma_adi: 'Metro Turizm', // API'den gelecek
+      kalkis_istasyon_adi: 'Büyük İstanbul Otogarı', // API'den gelecek
+      varis_istasyon_adi: 'Ankara AŞTİ', // API'den gelecek
+      kalkis_zamani: '2024-12-20T08:00:00', // API'den gelecek
+      varis_zamani: '2024-12-20T13:00:00', // API'den gelecek
     });
   }, [searchParams, router]);
 
@@ -145,7 +153,17 @@ export default function OdemePage() {
       });
 
       if (response.ok) {
-        setAdim('basarili');
+        const result = await response.json();
+        if (result.success) {
+          setAdim('basarili');
+          
+          // 3 saniye sonra biletlerim sayfasına yönlendir
+          setTimeout(() => {
+            router.push('/biletlerim');
+          }, 3000);
+        } else {
+          throw new Error(result.message || 'Ödeme işlemi başarısız');
+        }
       } else {
         throw new Error('Ödeme işlemi başarısız');
       }
@@ -176,8 +194,11 @@ export default function OdemePage() {
             <h1 className="text-2xl font-bold text-gray-900 mb-4">
               Ödeme Başarılı!
             </h1>
-            <p className="text-gray-600 mb-8">
+            <p className="text-gray-600 mb-4">
               Biletiniz başarıyla satın alındı. E-biletiniz email adresinize gönderildi.
+            </p>
+            <p className="text-sm text-gray-500 mb-8">
+              3 saniye sonra otomatik olarak biletlerim sayfasına yönlendirileceksiniz.
             </p>
             <div className="space-y-4">
               <button

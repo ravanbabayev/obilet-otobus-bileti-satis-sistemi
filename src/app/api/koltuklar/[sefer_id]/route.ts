@@ -91,41 +91,13 @@ export async function GET(request: NextRequest, { params }: { params: { sefer_id
 
     } catch (dbError: any) {
       console.error('Veritabanı hatası:', dbError);
-      
-      // Return mock data for development
-      const mockTripInfo = {
-        sefer_id: parseInt(sefer_id),
-        kalkis_zamani: '2024-12-31 08:00:00',
-        varis_zamani: '2024-12-31 13:00:00',
-        temel_ucret: 150.00,
-        firma_adi: 'Metro Turizm',
-        plaka: '34 ABC 123',
-        kalkis_istasyon_adi: 'Büyük Otogar',
-        kalkis_il: 'İstanbul',
-        varis_istasyon_adi: 'AŞTİ',
-        varis_il: 'Ankara',
-        koltuk_sayisi: 40
-      };
-
-      const mockSeats = [];
-      for (let i = 1; i <= 40; i++) {
-        // Make some random seats occupied
-        const isOccupied = Math.random() < 0.3;
-        mockSeats.push({
-          koltuk_no: i,
-          durum: isOccupied ? 'dolu' : 'boş',
-          cinsiyet: isOccupied ? (Math.random() < 0.5 ? 'E' : 'K') : null
-        });
-      }
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          trip: mockTripInfo,
-          seats: mockSeats
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Veritabanı bağlantısı sırasında hata oluştu.' 
         },
-        mock: true
-      });
+        { status: 500 }
+      );
     }
 
   } catch (error: any) {

@@ -201,7 +201,7 @@ export default function YardimMerkeziPage() {
                   <div className="px-6 pb-4">
                     <div className="space-y-4">
                       {category.questions.map((qa, index) => (
-                        <div key={index} className="border-l-4 border-red-200 pl-4">
+                        <div key={`${category.id}-qa-${index}`} className="border-l-4 border-red-200 pl-4">
                           <h3 className="font-medium text-gray-900 mb-2">{qa.q}</h3>
                           <p className="text-gray-600 text-sm leading-relaxed">{qa.a}</p>
                         </div>

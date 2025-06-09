@@ -28,7 +28,7 @@ export default function BiletlerimPage() {
   const router = useRouter();
   const [biletler, setBiletler] = useState<Bilet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [kullanici, setKullanici] = useState(null);
+  const [kullanici, setKullanici] = useState<any>(null);
   const [iptalEdilecekBilet, setIptalEdilecekBilet] = useState<number | null>(null);
   const [iptalNedeni, setIptalNedeni] = useState('');
   const [iptalLoading, setIptalLoading] = useState(false);
@@ -51,58 +51,21 @@ export default function BiletlerimPage() {
   const loadBiletler = async (kullanici_id: number) => {
     setLoading(true);
     try {
-      // Mock biletler - gerçek uygulamada API'den gelecek
-      const mockBiletler: Bilet[] = [
-        {
-          bilet_id: 1001,
-          bilet_kodu: 'OB20241220000105',
-          sefer_id: 1,
-          koltuk_no: 15,
-          ucret: 150.00,
-          satin_alma_tarihi: '2024-12-19T10:30:00',
-          bilet_durumu: 'aktif',
-          kalkis_zamani: '2024-12-20T08:00:00',
-          varis_zamani: '2024-12-20T13:00:00',
-          firma_adi: 'Metro Turizm',
-          plaka: '34MT1001',
-          kalkis_istasyon_adi: 'Büyük İstanbul Otogarı',
-          kalkis_il: 'İstanbul',
-          varis_istasyon_adi: 'Ankara AŞTİ',
-          varis_il: 'Ankara',
-          odeme_durumu: 'başarılı'
-        },
-        {
-          bilet_id: 1002,
-          bilet_kodu: 'OB20241215000210',
-          sefer_id: 2,
-          koltuk_no: 10,
-          ucret: 200.00,
-          satin_alma_tarihi: '2024-12-14T15:45:00',
-          bilet_durumu: 'kullanildi',
-          kalkis_zamani: '2024-12-15T09:00:00',
-          varis_zamani: '2024-12-15T18:00:00',
-          firma_adi: 'Ulusoy',
-          plaka: '34UL2001',
-          kalkis_istasyon_adi: 'Büyük İstanbul Otogarı',
-          kalkis_il: 'İstanbul',
-          varis_istasyon_adi: 'İzmir Büyük Otogar',
-          varis_il: 'İzmir',
-          odeme_durumu: 'başarılı'
-        }
-      ];
-
-      setBiletler(mockBiletler);
-
-      // Gerçek API çağrısı:
-      /*
+      // Gerçek API çağrısı
       const response = await fetch(`/api/biletler/kullanici/${kullanici_id}`);
       if (response.ok) {
         const data = await response.json();
-        setBiletler(data.biletler);
+
+        console.log(data);
+
+        setBiletler(data.biletler || []);
+      } else {
+        console.error('Biletler yüklenemedi:', response.statusText);
+        setBiletler([]);
       }
-      */
     } catch (error) {
       console.error('Biletler yüklenirken hata:', error);
+      setBiletler([]);
     } finally {
       setLoading(false);
     }
@@ -128,7 +91,9 @@ export default function BiletlerimPage() {
 
       if (response.ok && result.success) {
         // Biletleri yeniden yükle
-        await loadBiletler(kullanici.kullanici_id);
+        if (kullanici) {
+          await loadBiletler(kullanici.kullanici_id);
+        }
         setIptalEdilecekBilet(null);
         setIptalNedeni('');
         alert('Bilet başarıyla iptal edildi.');
@@ -247,7 +212,7 @@ export default function BiletlerimPage() {
                         {getBiletDurumText(bilet.bilet_durumu)}
                       </span>
                       <span className="text-xl font-bold text-green-600">
-                        ₺{bilet.ucret.toFixed(2)}
+                        ₺{Number(bilet.ucret || 0).toFixed(2)}
                       </span>
                     </div>
                   </div>
