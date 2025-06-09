@@ -305,7 +305,7 @@ export default function KoltukSecimiPage() {
               {/* Price */}
               <div className="text-center lg:text-right">
                 <div className="text-3xl font-bold text-red-600 mb-2">
-                  ₺{tripInfo.temel_ucret}
+                  ₺{Number(tripInfo.temel_ucret).toFixed(2)}
                 </div>
                 <div className="text-sm text-gray-600">Kişi başı</div>
               </div>
@@ -378,7 +378,7 @@ export default function KoltukSecimiPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Bilet Ücreti:</span>
-                    <span className="font-semibold">₺{tripInfo.temel_ucret}</span>
+                    <span className="font-semibold">₺{Number(tripInfo.temel_ucret).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Hizmet Bedeli:</span>
@@ -387,12 +387,12 @@ export default function KoltukSecimiPage() {
                   <hr />
                   <div className="flex justify-between items-center text-lg font-bold">
                     <span>Toplam:</span>
-                    <span className="text-red-600">₺{(tripInfo.temel_ucret + 5).toFixed(2)}</span>
+                    <span className="text-red-600">₺{(Number(tripInfo.temel_ucret) + 5).toFixed(2)}</span>
                   </div>
                   
                   {selectedSeat ? (
                     <Link
-                      href={`/odeme?sefer_id=${tripInfo.sefer_id}&koltuk_no=${selectedSeat}&ucret=${tripInfo.temel_ucret + 5}`}
+                      href={`/odeme?sefer_id=${tripInfo.sefer_id}&koltuk_no=${selectedSeat}&ucret=${Number(tripInfo.temel_ucret) + 5}`}
                       className="w-full bg-red-600 text-white py-3 px-6 rounded-md hover:bg-red-700 transition-colors flex items-center justify-center"
                     >
                       Devam Et

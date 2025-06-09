@@ -318,7 +318,7 @@ export default function SeferlerPage() {
                     {/* Price and Action */}
                     <div className="lg:col-span-2 text-center lg:text-right">
                       <div className="text-2xl font-bold text-red-600 mb-2">
-                        ₺{sefer.temel_ucret || '0'}
+                        ₺{Number(sefer.temel_ucret || 0).toFixed(2)}
                       </div>
                       <Link
                         href={`/koltuk-secimi?sefer_id=${sefer.sefer_id}`}
