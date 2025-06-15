@@ -240,10 +240,22 @@ export default function YazihaneBeliletSat() {
 
   const koltukSec = (koltukNo: number) => {
     const koltuk = koltuklar.find(k => k.koltuk_no === koltukNo);
+    
+    // Dolu koltuk kontrolü
     if (koltuk?.durum === "dolu") {
       toast({
         title: "Koltuk Dolu",
-        description: "Bu koltuk zaten rezerve edilmiş.",
+        description: "Bu koltuk zaten satılmış. Lütfen başka bir koltuk seçin.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Koltuk bulunamadı kontrolü
+    if (!koltuk) {
+      toast({
+        title: "Geçersiz Koltuk",
+        description: "Seçilen koltuk bulunamadı.",
         variant: "destructive",
       });
       return;
@@ -263,7 +275,12 @@ export default function YazihaneBeliletSat() {
     ));
 
     setSecilenKoltuk(koltukNo);
-    setStep(4);
+    
+    // Toast bildirim
+    toast({
+      title: "Koltuk Seçildi",
+      description: `${koltukNo} numaralı koltuk seçildi. Devam etmek için "Müşteri Bilgilerine Geç" butonuna tıklayın.`,
+    });
   };
 
   const biletSat = async () => {
@@ -557,81 +574,243 @@ export default function YazihaneBeliletSat() {
 
         {/* Step 3: Koltuk Seçimi */}
         {step === 3 && secilenSefer && (
-          <div className="space-y-6">
+          <div className="space-y-8">
+            {/* Header */}
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Koltuk Seçimi</h2>
-                <p className="text-gray-600">{secilenSefer.firma_adi} - {formatCurrency(secilenSefer.ucret)}</p>
+                <h2 className="text-3xl font-bold text-gray-900">Koltuk Seçimi</h2>
+                <div className="flex items-center mt-2 space-x-4 text-gray-600">
+                  <span className="flex items-center">
+                    <Bus className="h-4 w-4 mr-1" />
+                    {secilenSefer.firma_adi}
+                  </span>
+                  <span className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    {formatTarih(secilenSefer.kalkis_tarihi)}
+                  </span>
+                  <span className="flex items-center text-green-600 font-semibold">
+                    <CreditCard className="h-4 w-4 mr-1" />
+                    {formatCurrency(secilenSefer.ucret)}
+                  </span>
+                </div>
               </div>
-              <Button variant="outline" onClick={() => setStep(2)}>
+              <Button variant="outline" onClick={() => setStep(2)} className="flex items-center">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Sefer Değiştir
               </Button>
             </div>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="max-w-md mx-auto">
-                  {/* Otobüs Şeması */}
-                  <div className="bg-gray-100 rounded-lg p-4">
-                    <div className="text-center mb-4">
-                      <p className="text-sm font-medium text-gray-600">Şoför</p>
-                      <div className="w-12 h-8 bg-gray-300 rounded mx-auto"></div>
+            {/* Ana Koltuk Seçim Alanı */}
+            <div className="grid lg:grid-cols-3 gap-8">
+              {/* Otobüs Şeması */}
+              <div className="lg:col-span-2">
+                <Card className="shadow-lg">
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <CardTitle className="text-center flex items-center justify-center">
+                      <Bus className="h-6 w-6 mr-2 text-blue-600" />
+                      Otobüs Koltuk Düzeni
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-8">
+                    <div className="max-w-lg mx-auto">
+                      {/* Otobüs Gövdesi */}
+                      <div className="bg-gradient-to-b from-gray-50 to-gray-100 rounded-2xl p-6 border-2 border-gray-200 shadow-inner">
+                        {/* Şoför Bölümü */}
+                        <div className="text-center mb-6">
+                          <div className="inline-flex items-center bg-gray-800 text-white px-4 py-2 rounded-lg shadow-md">
+                            <User className="h-4 w-4 mr-2" />
+                            <span className="text-sm font-medium">Şoför</span>
+                          </div>
+                          <div className="w-16 h-3 bg-gray-400 rounded-full mx-auto mt-2"></div>
+                        </div>
+                        
+                        {/* Koridor İşareti */}
+                        <div className="text-center mb-4">
+                          <div className="w-1 h-8 bg-yellow-400 mx-auto rounded-full"></div>
+                          <span className="text-xs text-gray-500 font-medium">Koridor</span>
+                        </div>
+                        
+                        {/* Koltuk Grid'i */}
+                        <div className="grid grid-cols-4 gap-3">
+                          {koltuklar.slice(0, 44).map((koltuk) => {
+                            const isWindowSeat = (koltuk.koltuk_no - 1) % 4 === 0 || (koltuk.koltuk_no - 1) % 4 === 3;
+                            const isAisleSeat = (koltuk.koltuk_no - 1) % 4 === 1 || (koltuk.koltuk_no - 1) % 4 === 2;
+                            
+                            return (
+                              <button
+                                key={koltuk.koltuk_no}
+                                onClick={() => koltuk.durum !== "dolu" && koltukSec(koltuk.koltuk_no)}
+                                disabled={koltuk.durum === "dolu"}
+                                className={`
+                                  relative w-14 h-12 rounded-lg text-sm font-bold transition-all duration-200 shadow-md
+                                  ${koltuk.durum === "bos" ? 
+                                    "bg-gradient-to-b from-green-100 to-green-200 hover:from-green-200 hover:to-green-300 text-green-800 border-2 border-green-300 hover:shadow-lg transform hover:scale-105 cursor-pointer" : ""}
+                                  ${koltuk.durum === "dolu" ? 
+                                    "bg-gradient-to-b from-red-100 to-red-200 text-red-800 border-2 border-red-300 cursor-not-allowed opacity-75 pointer-events-none" : ""}
+                                  ${koltuk.durum === "secili" ? 
+                                    "bg-gradient-to-b from-blue-500 to-blue-600 text-white border-2 border-blue-400 shadow-lg ring-2 ring-blue-300 transform hover:scale-105 cursor-pointer" : ""}
+                                  ${isWindowSeat ? "relative" : ""}
+                                `}
+                              >
+                                {/* Pencere İkonu */}
+                                {isWindowSeat && (
+                                  <div className="absolute -left-1 top-1/2 transform -translate-y-1/2 w-1 h-6 bg-blue-300 rounded-full"></div>
+                                )}
+                                
+                                {/* Koltuk Numarası */}
+                                <span className="relative z-10">{koltuk.koltuk_no}</span>
+                                
+                                {/* Cinsiyet İkonu */}
+                                {koltuk.durum === "dolu" && koltuk.cinsiyet && (
+                                  <div className="absolute top-0 right-0 w-3 h-3 rounded-full text-xs flex items-center justify-center">
+                                    {koltuk.cinsiyet === "E" ? "♂" : "♀"}
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        
+                        {/* Arka Koltuk */}
+                        <div className="mt-6 flex justify-center">
+                          <button
+                            onClick={() => koltuklar[44]?.durum !== "dolu" && koltukSec(45)}
+                            disabled={koltuklar[44]?.durum === "dolu"}
+                            className={`
+                              w-24 h-12 rounded-lg text-sm font-bold transition-all duration-200 shadow-md
+                              ${koltuklar[44]?.durum === "bos" ? 
+                                "bg-gradient-to-b from-green-100 to-green-200 hover:from-green-200 hover:to-green-300 text-green-800 border-2 border-green-300 hover:shadow-lg transform hover:scale-105 cursor-pointer" : ""}
+                              ${koltuklar[44]?.durum === "dolu" ? 
+                                "bg-gradient-to-b from-red-100 to-red-200 text-red-800 border-2 border-red-300 cursor-not-allowed opacity-75 pointer-events-none" : ""}
+                              ${koltuklar[44]?.durum === "secili" ? 
+                                "bg-gradient-to-b from-blue-500 to-blue-600 text-white border-2 border-blue-400 shadow-lg ring-2 ring-blue-300 transform hover:scale-105 cursor-pointer" : ""}
+                            `}
+                          >
+                            45
+                            {koltuklar[44]?.durum === "dolu" && koltuklar[44]?.cinsiyet && (
+                              <span className="ml-1 text-xs">
+                                {koltuklar[44].cinsiyet === "E" ? "♂" : "♀"}
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Bilgi Paneli */}
+              <div className="space-y-6">
+                {/* Koltuk Durumu Açıklaması */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Koltuk Durumları</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                      <div className="flex items-center">
+                        <div className="w-6 h-6 bg-gradient-to-b from-green-100 to-green-200 border-2 border-green-300 rounded-lg mr-3"></div>
+                        <span className="font-medium text-green-800">Boş Koltuk</span>
+                      </div>
+                      <span className="text-sm text-green-600 font-medium">Seçilebilir</span>
                     </div>
                     
-                    <div className="grid grid-cols-4 gap-2">
-                      {koltuklar.slice(0, 44).map((koltuk) => (
-                        <button
-                          key={koltuk.koltuk_no}
-                          onClick={() => koltukSec(koltuk.koltuk_no)}
-                          disabled={koltuk.durum === "dolu"}
-                          className={`
-                            w-10 h-10 rounded text-xs font-medium transition-colors
-                            ${koltuk.durum === "bos" ? "bg-green-100 hover:bg-green-200 text-green-800" : ""}
-                            ${koltuk.durum === "dolu" ? "bg-red-100 text-red-800 cursor-not-allowed" : ""}
-                            ${koltuk.durum === "secili" ? "bg-blue-500 text-white" : ""}
-                          `}
-                        >
-                          {koltuk.koltuk_no}
-                        </button>
-                      ))}
+                    <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
+                      <div className="flex items-center">
+                        <div className="w-6 h-6 bg-gradient-to-b from-red-100 to-red-200 border-2 border-red-300 rounded-lg mr-3"></div>
+                        <span className="font-medium text-red-800">Dolu Koltuk</span>
+                      </div>
+                      <span className="text-sm text-red-600 font-medium">Satılmış</span>
                     </div>
                     
-                    {/* Arka koltuk */}
-                    <div className="mt-4 flex justify-center">
-                      <button
-                        onClick={() => koltukSec(45)}
-                        disabled={koltuklar[44]?.durum === "dolu"}
-                        className={`
-                          w-20 h-10 rounded text-xs font-medium transition-colors
-                          ${koltuklar[44]?.durum === "bos" ? "bg-green-100 hover:bg-green-200 text-green-800" : ""}
-                          ${koltuklar[44]?.durum === "dolu" ? "bg-red-100 text-red-800 cursor-not-allowed" : ""}
-                          ${koltuklar[44]?.durum === "secili" ? "bg-blue-500 text-white" : ""}
-                        `}
-                      >
-                        45
-                      </button>
+                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center">
+                        <div className="w-6 h-6 bg-gradient-to-b from-blue-500 to-blue-600 border-2 border-blue-400 rounded-lg mr-3"></div>
+                        <span className="font-medium text-blue-800">Seçili Koltuk</span>
+                      </div>
+                      <span className="text-sm text-blue-600 font-medium">Aktif Seçim</span>
                     </div>
-                  </div>
-                  
-                  {/* Koltuk Durumu Açıklaması */}
-                  <div className="flex justify-center space-x-6 mt-6">
-                    <div className="flex items-center">
-                      <div className="w-4 h-4 bg-green-100 rounded mr-2"></div>
-                      <span className="text-sm">Boş</span>
+                    
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex items-center">
+                        <div className="w-1 h-6 bg-blue-300 rounded-full mr-3 ml-2"></div>
+                        <span className="font-medium text-gray-800">Pencere Kenarı</span>
+                      </div>
+                      <span className="text-sm text-gray-600 font-medium">Manzaralı</span>
                     </div>
-                    <div className="flex items-center">
-                      <div className="w-4 h-4 bg-red-100 rounded mr-2"></div>
-                      <span className="text-sm">Dolu</span>
+                  </CardContent>
+                </Card>
+
+                {/* Seçilen Koltuk Bilgisi */}
+                {secilenKoltuk && (
+                  <Card className="border-blue-200 bg-blue-50">
+                    <CardHeader className="bg-blue-100">
+                      <CardTitle className="text-blue-800 flex items-center">
+                        <CheckCircle className="h-5 w-5 mr-2" />
+                        Seçilen Koltuk
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Koltuk Numarası:</span>
+                          <span className="font-bold text-lg text-blue-800">{secilenKoltuk}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Konum:</span>
+                          <span className="font-medium">
+                            {((secilenKoltuk - 1) % 4 === 0 || (secilenKoltuk - 1) % 4 === 3) ? "Pencere Kenarı" : "Koridor Kenarı"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Ücret:</span>
+                          <span className="font-bold text-green-600">{formatCurrency(secilenSefer.ucret)}</span>
+                        </div>
+                        <div className="pt-3 border-t border-blue-200">
+                          <Button
+                            onClick={() => setStep(4)}
+                            className="w-full bg-blue-600 hover:bg-blue-700"
+                          >
+                            Müşteri Bilgilerine Geç
+                            <ArrowLeft className="h-4 w-4 ml-2 rotate-180" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Sefer Bilgileri */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Sefer Bilgileri</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Kalkış:</span>
+                      <span className="font-medium">{secilenSefer.kalkis_istasyon_adi}</span>
                     </div>
-                    <div className="flex items-center">
-                      <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
-                      <span className="text-sm">Seçili</span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Varış:</span>
+                      <span className="font-medium">{secilenSefer.varis_istasyon_adi}</span>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tarih:</span>
+                      <span className="font-medium">{formatTarih(secilenSefer.kalkis_tarihi)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Saat:</span>
+                      <span className="font-medium">{formatSaat(secilenSefer.kalkis_tarihi)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Boş Koltuk:</span>
+                      <span className="font-medium text-green-600">{secilenSefer.bos_koltuk_sayisi}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
         )}
 

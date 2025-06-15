@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       // Müşteri bilgilerini güncelle
       await executeQuery(
         `UPDATE musteri 
-         SET ad = ?, soyad = ?, telefon = ?, email = ?, updated_at = CURRENT_TIMESTAMP
+         SET ad = ?, soyad = ?, telefon = ?, email = ?
          WHERE musteri_id = ?`,
         [ad, soyad, telefon, email || null, musteri_id]
       );
