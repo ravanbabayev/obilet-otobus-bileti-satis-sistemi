@@ -16,18 +16,21 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  User
+  User,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface DashboardStats {
   bugunSatilanBilet: number;
   bugunGelir: number;
   aktifSeferSayisi: number;
   bekleyenMusteriler: number;
+  recentSales: RecentSale[];
 }
 
 interface RecentSale {
@@ -36,6 +39,24 @@ interface RecentSale {
   sefer_bilgisi: string;
   ucret: number;
   satis_zamani: string;
+  bilet_tarihi: string;
+}
+
+interface SearchResult {
+  bilet_id: number;
+  koltuk_no: number;
+  bilet_durumu: string;
+  ucret: number;
+  bilet_tarihi: string;
+  bilet_saati: string;
+  musteri_adi: string;
+  tc_kimlik_no: string;
+  musteri_telefon: string;
+  sefer_bilgisi: string;
+  kalkis_tarihi: string;
+  kalkis_saati: string;
+  firma_adi: string;
+  plaka: string;
 }
 
 export default function YazihanePanel() {
@@ -43,12 +64,25 @@ export default function YazihanePanel() {
     bugunSatilanBilet: 0,
     bugunGelir: 0,
     aktifSeferSayisi: 0,
-    bekleyenMusteriler: 0
+    bekleyenMusteriler: 0,
+    recentSales: []
   });
-  const [recentSales, setRecentSales] = useState<RecentSale[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  // Search states
+  const [biletNo, setBiletNo] = useState("");
+  const [tcKimlik, setTcKimlik] = useState("");
+  const [telefon, setTelefon] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [showResults, setShowResults] = useState(false);
+
+  // Quick trip search states
+  const [kalkis, setKalkis] = useState("");
+  const [varis, setVaris] = useState("");
 
   // Component mount olduğunda saat başlat
   useEffect(() => {
@@ -64,48 +98,90 @@ export default function YazihanePanel() {
 
   // Dashboard verilerini yükle
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        // Simulated data - gerçek API'lerle değiştirilebilir
-        setStats({
-          bugunSatilanBilet: 47,
-          bugunGelir: 12450,
-          aktifSeferSayisi: 23,
-          bekleyenMusteriler: 3
-        });
-
-        setRecentSales([
-          {
-            bilet_id: 1001,
-            musteri_adi: "Ahmet Yılmaz",
-            sefer_bilgisi: "İstanbul → Ankara",
-            ucret: 150,
-            satis_zamani: "14:30"
-          },
-          {
-            bilet_id: 1002,
-            musteri_adi: "Fatma Demir",
-            sefer_bilgisi: "Ankara → İzmir",
-            ucret: 180,
-            satis_zamani: "14:15"
-          },
-          {
-            bilet_id: 1003,
-            musteri_adi: "Mehmet Kaya",
-            sefer_bilgisi: "İzmir → Antalya",
-            ucret: 120,
-            satis_zamani: "13:45"
-          }
-        ]);
-      } catch (error) {
-        console.error("Dashboard verileri yüklenirken hata:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/dashboard/main-stats');
+      const data = await response.json();
+      
+      if (data.success) {
+        setStats(data.data);
+      } else {
+        console.error('Dashboard verileri alınamadı:', data.error);
+        // Fallback to static data if API fails
+        setStats({
+          bugunSatilanBilet: 0,
+          bugunGelir: 0,
+          aktifSeferSayisi: 0,
+          bekleyenMusteriler: 0,
+          recentSales: []
+        });
+      }
+    } catch (error) {
+      console.error("Dashboard verileri yüklenirken hata:", error);
+      // Fallback to static data
+      setStats({
+        bugunSatilanBilet: 0,
+        bugunGelir: 0,
+        aktifSeferSayisi: 0,
+        bekleyenMusteriler: 0,
+        recentSales: []
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickSearch = async (searchType: 'bilet' | 'tc' | 'telefon') => {
+    const searchValue = searchType === 'bilet' ? biletNo : 
+                       searchType === 'tc' ? tcKimlik : telefon;
+    
+    if (!searchValue.trim()) {
+      setSearchError('Lütfen arama değeri girin');
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      setSearchError("");
+      setSearchResults([]);
+
+      const params = new URLSearchParams();
+      if (searchType === 'bilet') params.set('bilet_no', searchValue);
+      else if (searchType === 'tc') params.set('tc_kimlik', searchValue);
+      else params.set('telefon', searchValue);
+
+      const response = await fetch(`/api/search/quick?${params}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setSearchResults(data.data);
+        setShowResults(true);
+        if (data.data.length === 0) {
+          setSearchError('Arama kriterinize uygun sonuç bulunamadı');
+        }
+      } else {
+        setSearchError(data.error || 'Arama sırasında hata oluştu');
+      }
+    } catch (error) {
+      console.error('Arama hatası:', error);
+      setSearchError('Arama sırasında hata oluştu');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleTripSearch = () => {
+    if (!kalkis || !varis) {
+      alert('Lütfen kalkış ve varış noktalarını seçin');
+      return;
+    }
+    // Sefer arama sayfasına yönlendir
+    window.location.href = `/seferler?kalkis=${encodeURIComponent(kalkis)}&varis=${encodeURIComponent(varis)}`;
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('tr-TR', {
@@ -129,6 +205,15 @@ export default function YazihanePanel() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      'AKTIF': 'bg-green-100 text-green-800',
+      'IPTAL': 'bg-red-100 text-red-800',
+      'KULLANILDI': 'bg-blue-100 text-blue-800'
+    };
+    return badges[status as keyof typeof badges] || 'bg-gray-100 text-gray-800';
   };
 
   return (
@@ -161,9 +246,14 @@ export default function YazihanePanel() {
               </div>
               
               <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={fetchDashboardData}
+                  disabled={loading}
+                >
                   <Settings className="h-4 w-4 mr-2" />
-                  Ayarlar
+                  {loading ? 'Yenileniyor...' : 'Yenile'}
                 </Button>
                 <Button variant="outline" size="sm">
                   <User className="h-4 w-4 mr-2" />
@@ -214,7 +304,7 @@ export default function YazihanePanel() {
           </div>
         </div>
 
-        {/* Dashboard Stats */}
+        {/* Dashboard Stats - Now Dynamic */}
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Günlük Özet</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -224,7 +314,9 @@ export default function YazihanePanel() {
                 <CreditCard className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{stats.bugunSatilanBilet}</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {loading ? "..." : stats.bugunSatilanBilet}
+                </div>
                 <p className="text-xs text-muted-foreground">Bugün satılan toplam bilet</p>
               </CardContent>
             </Card>
@@ -235,7 +327,9 @@ export default function YazihanePanel() {
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.bugunGelir)}</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {loading ? "..." : formatCurrency(stats.bugunGelir)}
+                </div>
                 <p className="text-xs text-muted-foreground">Bugünkü toplam satış</p>
               </CardContent>
             </Card>
@@ -246,7 +340,9 @@ export default function YazihanePanel() {
                 <Bus className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-purple-600">{stats.aktifSeferSayisi}</div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {loading ? "..." : stats.aktifSeferSayisi}
+                </div>
                 <p className="text-xs text-muted-foreground">Bugün için aktif sefer</p>
               </CardContent>
             </Card>
@@ -266,7 +362,7 @@ export default function YazihanePanel() {
 
         {/* Recent Sales & Quick Search */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Sales */}
+          {/* Recent Sales - Now Dynamic */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -275,32 +371,44 @@ export default function YazihanePanel() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentSales.map((sale) => (
-                  <div key={sale.bilet_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">{sale.musteri_adi}</p>
-                      <p className="text-sm text-gray-500 flex items-center">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {sale.sefer_bilgisi}
-                      </p>
+              {loading ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Yükleniyor...</p>
+                </div>
+              ) : stats.recentSales.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Henüz satış bulunamadı</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {stats.recentSales.slice(0, 5).map((sale) => (
+                    <div key={sale.bilet_id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{sale.musteri_adi}</p>
+                        <p className="text-sm text-gray-500 flex items-center">
+                          <MapPin className="h-3 w-3 mr-1" />
+                          {sale.sefer_bilgisi}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-green-600">{formatCurrency(sale.ucret)}</p>
+                        <p className="text-xs text-gray-500">{sale.satis_zamani}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-green-600">{formatCurrency(sale.ucret)}</p>
-                      <p className="text-xs text-gray-500">{sale.satis_zamani}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
               <div className="mt-4">
-                <Button variant="outline" className="w-full">
-                  Tüm Satışları Görüntüle
-                </Button>
+                <Link href="/yonetim/biletler">
+                  <Button variant="outline" className="w-full">
+                    Tüm Satışları Görüntüle
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>
 
-          {/* Quick Search */}
+          {/* Quick Search - Now Working */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -309,13 +417,31 @@ export default function YazihanePanel() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {searchError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{searchError}</AlertDescription>
+                </Alert>
+              )}
+
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">
                   Bilet Numarası ile Ara
                 </label>
                 <div className="flex space-x-2">
-                  <Input placeholder="Bilet numarası girin..." className="flex-1" />
-                  <Button>Ara</Button>
+                  <Input 
+                    placeholder="Bilet numarası girin..." 
+                    className="flex-1" 
+                    value={biletNo}
+                    onChange={(e) => setBiletNo(e.target.value)}
+                    disabled={searchLoading}
+                  />
+                  <Button 
+                    onClick={() => handleQuickSearch('bilet')}
+                    disabled={searchLoading}
+                  >
+                    {searchLoading ? "..." : "Ara"}
+                  </Button>
                 </div>
               </div>
 
@@ -324,8 +450,19 @@ export default function YazihanePanel() {
                   TC Kimlik ile Ara
                 </label>
                 <div className="flex space-x-2">
-                  <Input placeholder="TC kimlik numarası..." className="flex-1" />
-                  <Button>Ara</Button>
+                  <Input 
+                    placeholder="TC kimlik numarası..." 
+                    className="flex-1" 
+                    value={tcKimlik}
+                    onChange={(e) => setTcKimlik(e.target.value)}
+                    disabled={searchLoading}
+                  />
+                  <Button 
+                    onClick={() => handleQuickSearch('tc')}
+                    disabled={searchLoading}
+                  >
+                    {searchLoading ? "..." : "Ara"}
+                  </Button>
                 </div>
               </div>
 
@@ -334,40 +471,123 @@ export default function YazihanePanel() {
                   Telefon ile Ara
                 </label>
                 <div className="flex space-x-2">
-                  <Input placeholder="Telefon numarası..." className="flex-1" />
-                  <Button>Ara</Button>
+                  <Input 
+                    placeholder="Telefon numarası..." 
+                    className="flex-1" 
+                    value={telefon}
+                    onChange={(e) => setTelefon(e.target.value)}
+                    disabled={searchLoading}
+                  />
+                  <Button 
+                    onClick={() => handleQuickSearch('telefon')}
+                    disabled={searchLoading}
+                  >
+                    {searchLoading ? "..." : "Ara"}
+                  </Button>
                 </div>
               </div>
 
               <div className="pt-4 border-t">
                 <h4 className="font-medium text-gray-900 mb-3">Hızlı Sefer Arama</h4>
                 <div className="grid grid-cols-2 gap-2">
-                  <Select>
+                  <Select value={kalkis} onValueChange={setKalkis}>
                     <SelectTrigger>
                       <SelectValue placeholder="Kalkış" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="istanbul">İstanbul</SelectItem>
-                      <SelectItem value="ankara">Ankara</SelectItem>
-                      <SelectItem value="izmir">İzmir</SelectItem>
+                      <SelectItem value="İstanbul">İstanbul</SelectItem>
+                      <SelectItem value="Ankara">Ankara</SelectItem>
+                      <SelectItem value="İzmir">İzmir</SelectItem>
+                      <SelectItem value="Antalya">Antalya</SelectItem>
+                      <SelectItem value="Bursa">Bursa</SelectItem>
+                      <SelectItem value="Adana">Adana</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select>
+                  <Select value={varis} onValueChange={setVaris}>
                     <SelectTrigger>
                       <SelectValue placeholder="Varış" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="istanbul">İstanbul</SelectItem>
-                      <SelectItem value="ankara">Ankara</SelectItem>
-                      <SelectItem value="izmir">İzmir</SelectItem>
+                      <SelectItem value="İstanbul">İstanbul</SelectItem>
+                      <SelectItem value="Ankara">Ankara</SelectItem>
+                      <SelectItem value="İzmir">İzmir</SelectItem>
+                      <SelectItem value="Antalya">Antalya</SelectItem>
+                      <SelectItem value="Bursa">Bursa</SelectItem>
+                      <SelectItem value="Adana">Adana</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <Button className="w-full mt-3">Seferleri Listele</Button>
+                <Button className="w-full mt-3" onClick={handleTripSearch}>
+                  Seferleri Listele
+                </Button>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Search Results */}
+        {showResults && searchResults.length > 0 && (
+          <div className="mt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Arama Sonuçları ({searchResults.length} sonuç)</span>
+                  <Button variant="outline" size="sm" onClick={() => setShowResults(false)}>
+                    Kapat
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {searchResults.map((result) => (
+                    <div key={result.bilet_id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-lg">Bilet #{result.bilet_id}</h4>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(result.bilet_durumu)}`}>
+                          {result.bilet_durumu}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Müşteri</p>
+                          <p className="font-medium">{result.musteri_adi}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Sefer</p>
+                          <p className="font-medium">{result.sefer_bilgisi}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Koltuk</p>
+                          <p className="font-medium">{result.koltuk_no}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Ücret</p>
+                          <p className="font-medium text-green-600">{formatCurrency(result.ucret)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Kalkış</p>
+                          <p className="font-medium">{result.kalkis_tarihi} {result.kalkis_saati}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Firma</p>
+                          <p className="font-medium">{result.firma_adi}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Plaka</p>
+                          <p className="font-medium">{result.plaka}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Telefon</p>
+                          <p className="font-medium">{result.musteri_telefon}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </main>
     </div>
   );
