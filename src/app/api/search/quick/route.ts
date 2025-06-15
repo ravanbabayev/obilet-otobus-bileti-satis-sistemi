@@ -1,123 +1,71 @@
-import { NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db';
+import { executeStoredProcedure } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const biletNo = searchParams.get('bilet_no');
-    const tcKimlik = searchParams.get('tc_kimlik');
-    const telefon = searchParams.get('telefon');
+    const query = searchParams.get('q');
 
-    console.log('Hızlı arama istendi:', { biletNo, tcKimlik, telefon });
-
-    let results = [];
-
-    if (biletNo) {
-      // Bilet numarası ile arama
-      results = await executeQuery(`
-        SELECT 
-          b.bilet_id,
-          b.koltuk_no,
-          b.bilet_durumu,
-          b.ucret,
-          DATE(b.bilet_tarihi) as bilet_tarihi,
-          TIME(b.bilet_tarihi) as bilet_saati,
-          CONCAT(m.ad, ' ', m.soyad) as musteri_adi,
-          m.tc_kimlik_no,
-          m.telefon as musteri_telefon,
-          CONCAT(ks.il, ' → ', vs.il) as sefer_bilgisi,
-          DATE(s.kalkis_tarihi) as kalkis_tarihi,
-          TIME(s.kalkis_tarihi) as kalkis_saati,
-          f.firma_adi,
-          o.plaka
-        FROM bilet b
-        INNER JOIN musteri m ON b.musteri_id = m.musteri_id
-        INNER JOIN sefer s ON b.sefer_id = s.sefer_id
-        INNER JOIN otobus o ON s.otobus_id = o.otobus_id
-        INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
-        INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
-        INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
-        WHERE b.bilet_id = ?
-      `, [biletNo]);
-
-    } else if (tcKimlik) {
-      // TC Kimlik ile arama
-      results = await executeQuery(`
-        SELECT 
-          b.bilet_id,
-          b.koltuk_no,
-          b.bilet_durumu,
-          b.ucret,
-          DATE(b.bilet_tarihi) as bilet_tarihi,
-          TIME(b.bilet_tarihi) as bilet_saati,
-          CONCAT(m.ad, ' ', m.soyad) as musteri_adi,
-          m.tc_kimlik_no,
-          m.telefon as musteri_telefon,
-          CONCAT(ks.il, ' → ', vs.il) as sefer_bilgisi,
-          DATE(s.kalkis_tarihi) as kalkis_tarihi,
-          TIME(s.kalkis_tarihi) as kalkis_saati,
-          f.firma_adi,
-          o.plaka
-        FROM bilet b
-        INNER JOIN musteri m ON b.musteri_id = m.musteri_id
-        INNER JOIN sefer s ON b.sefer_id = s.sefer_id
-        INNER JOIN otobus o ON s.otobus_id = o.otobus_id
-        INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
-        INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
-        INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
-        WHERE m.tc_kimlik_no = ?
-        ORDER BY b.bilet_tarihi DESC
-      `, [tcKimlik]);
-
-    } else if (telefon) {
-      // Telefon ile arama
-      const cleanPhone = telefon.replace(/[^0-9]/g, '');
-      results = await executeQuery(`
-        SELECT 
-          b.bilet_id,
-          b.koltuk_no,
-          b.bilet_durumu,
-          b.ucret,
-          DATE(b.bilet_tarihi) as bilet_tarihi,
-          TIME(b.bilet_tarihi) as bilet_saati,
-          CONCAT(m.ad, ' ', m.soyad) as musteri_adi,
-          m.tc_kimlik_no,
-          m.telefon as musteri_telefon,
-          CONCAT(ks.il, ' → ', vs.il) as sefer_bilgisi,
-          DATE(s.kalkis_tarihi) as kalkis_tarihi,
-          TIME(s.kalkis_tarihi) as kalkis_saati,
-          f.firma_adi,
-          o.plaka
-        FROM bilet b
-        INNER JOIN musteri m ON b.musteri_id = m.musteri_id
-        INNER JOIN sefer s ON b.sefer_id = s.sefer_id
-        INNER JOIN otobus o ON s.otobus_id = o.otobus_id
-        INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
-        INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
-        INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
-        WHERE REPLACE(REPLACE(REPLACE(m.telefon, ' ', ''), '-', ''), '(', '') LIKE ?
-        ORDER BY b.bilet_tarihi DESC
-      `, [`%${cleanPhone}%`]);
+    if (!query || query.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Arama terimi gereklidir' },
+        { status: 400 }
+      );
     }
 
-    console.log(`Hızlı arama sonucu: ${results.length} kayıt bulundu`);
+    console.log('Hızlı arama yapılıyor:', query);
 
-    return NextResponse.json({
-      success: true,
-      data: results,
-      searchType: biletNo ? 'bilet' : tcKimlik ? 'tc' : 'telefon',
-      searchValue: biletNo || tcKimlik || telefon
-    });
+    let results: any[] = [];
 
-  } catch (error) {
+    // Bilet numarası ile arama (sadece sayı ise)
+    if (/^\d+$/.test(query)) {
+      try {
+        const biletResults = await executeStoredProcedure('sp_hizli_arama', [
+          query, null, null
+        ]);
+        if (Array.isArray(biletResults) && biletResults.length > 0) {
+          results = biletResults;
+        }
+      } catch (error) {
+        console.log('Bilet arama hatası:', error);
+      }
+    }
+
+    // TC kimlik numarası ile arama (11 haneli sayı ise)
+    if (results.length === 0 && /^\d{11}$/.test(query)) {
+      try {
+        const tcResults = await executeStoredProcedure('sp_hizli_arama', [
+          null, query, null
+        ]);
+        if (Array.isArray(tcResults) && tcResults.length > 0) {
+          results = tcResults;
+        }
+      } catch (error) {
+        console.log('TC arama hatası:', error);
+      }
+    }
+
+    // Telefon numarası ile arama
+    if (results.length === 0) {
+      try {
+        const telefonResults = await executeStoredProcedure('sp_hizli_arama', [
+          null, null, query
+        ]);
+        if (Array.isArray(telefonResults) && telefonResults.length > 0) {
+          results = telefonResults;
+        }
+      } catch (error) {
+        console.log('Telefon arama hatası:', error);
+      }
+    }
+
+    console.log('Hızlı arama sonucu:', results.length, 'kayıt bulundu');
+    return NextResponse.json(results);
+
+  } catch (error: any) {
     console.error('Hızlı arama hatası:', error);
-    
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Arama yapılırken hata oluştu',
-        details: error instanceof Error ? error.message : 'Bilinmeyen hata'
-      },
+      { error: 'Arama sırasında bir hata oluştu' },
       { status: 500 }
     );
   }

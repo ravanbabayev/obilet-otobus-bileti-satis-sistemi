@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db';
+import { executeStoredProcedure } from '@/lib/db';
 
 // Müşteri listesi getirme
 export async function GET(request: NextRequest) {
@@ -7,45 +7,20 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
 
-    let query = `
-      SELECT
-        musteri_id,
-        ad,
-        soyad,
-        tc_kimlik_no,
-        telefon,
-        email,
-        created_at
-      FROM musteri
-      WHERE 1=1
-    `;
+    console.log('Müşteri listesi istendi:', { search });
 
-    const params: any[] = [];
+    // Stored procedure ile müşteri listesini al
+    const results = await executeStoredProcedure('sp_musteri_tumunu_getir', [search]);
 
-    if (search && search.trim() !== '') {
-      query += ` AND (
-        ad LIKE CONCAT('%', ?, '%') OR
-        soyad LIKE CONCAT('%', ?, '%') OR
-        tc_kimlik_no LIKE CONCAT('%', ?, '%') OR
-        telefon LIKE CONCAT('%', ?, '%') OR
-        email LIKE CONCAT('%', ?, '%')
-      )`;
-      for (let i = 0; i < 5; i++) {
-        params.push(search);
-      }
-    }
-
-    query += ` ORDER BY created_at DESC`;
-
-    const results = await executeQuery(query, params);
+    console.log('Müşteri listesi başarıyla alındı:', Array.isArray(results) ? results.length : 0, 'kayıt');
     return NextResponse.json(results || []);
 
-  } catch (error) {
-    console.error('Müşteri listesi alınırken hata:', error);
-    return NextResponse.json({ 
-      error: 'Müşteri listesi alınamadı',
-      details: error instanceof Error ? error.message : 'Bilinmeyen hata'
-    }, { status: 500 });
+  } catch (error: any) {
+    console.error('Müşteri listesi hatası:', error);
+    return NextResponse.json(
+      { error: 'Müşteri listesi yüklenirken hata oluştu' },
+      { status: 500 }
+    );
   }
 }
 
@@ -55,64 +30,57 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { ad, soyad, tc_kimlik_no, telefon, email } = body;
 
+    console.log('Müşteri ekleme isteği:', body);
+
     // Validasyon
     if (!ad || !soyad || !tc_kimlik_no || !telefon) {
       return NextResponse.json(
-        { error: 'Ad, soyad, TC kimlik no ve telefon zorunludur' }, 
+        { error: 'Ad, soyad, TC kimlik numarası ve telefon alanları zorunludur' }, 
         { status: 400 }
       );
     }
 
-    // TC Kimlik No validasyonu
-    if (!/^[1-9][0-9]{10}$/.test(tc_kimlik_no)) {
+    if (tc_kimlik_no.length !== 11) {
       return NextResponse.json(
-        { error: 'Geçersiz TC Kimlik No' }, 
+        { error: 'TC kimlik numarası 11 haneli olmalıdır' }, 
         { status: 400 }
       );
     }
 
-    // Telefon validasyonu
-    const cleanPhone = telefon.replace(/[^\d]/g, '');
-    if (!/^(5\d{9}|0[0-9]{10})$/.test(cleanPhone)) {
+    // Stored procedure ile müşteri ekle/güncelle
+    const results = await executeStoredProcedure('sp_musteri_ekle_guncelle', [
+      ad, soyad, tc_kimlik_no, telefon, email || null
+    ]);
+
+    if (Array.isArray(results) && results.length > 0) {
+      const result = results[0];
+      return NextResponse.json({
+        success: true,
+        message: result.durum === 'EKLENDİ' ? 'Müşteri başarıyla eklendi' : 'Müşteri bilgileri güncellendi',
+        musteri_id: result.musteri_id,
+        durum: result.durum
+      });
+    } else {
       return NextResponse.json(
-        { error: 'Geçersiz telefon numarası' }, 
-        { status: 400 }
+        { error: 'Müşteri kaydı oluşturulamadı' }, 
+        { status: 500 }
       );
     }
 
-    // TC kimlik no tekrarı kontrolü
-    const existingCustomer = await executeQuery(
-      'SELECT musteri_id FROM musteri WHERE tc_kimlik_no = ?',
-      [tc_kimlik_no]
+  } catch (error: any) {
+    console.error('Müşteri ekleme hatası:', error);
+    
+    // MySQL duplicate key hatası kontrolü
+    if (error.code === 'ER_DUP_ENTRY') {
+      return NextResponse.json(
+        { error: 'Bu TC kimlik numarası zaten kayıtlı' }, 
+        { status: 409 }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: 'Müşteri kaydı oluşturulurken hata oluştu' },
+      { status: 500 }
     );
-
-    if (Array.isArray(existingCustomer) && existingCustomer.length > 0) {
-      return NextResponse.json(
-        { error: 'Bu TC kimlik numarası ile kayıtlı müşteri zaten mevcut' }, 
-        { status: 400 }
-      );
-    }
-
-    // Müşteri ekleme
-    const result: any = await executeQuery(
-      `INSERT INTO musteri (ad, soyad, tc_kimlik_no, telefon, email) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [ad, soyad, tc_kimlik_no, telefon, email || null]
-    );
-
-    const musteri_id = result.insertId;
-
-    return NextResponse.json({
-      success: true,
-      message: 'Müşteri başarıyla eklendi',
-      musteri_id: musteri_id
-    });
-
-  } catch (error) {
-    console.error('Müşteri eklenirken hata:', error);
-    return NextResponse.json({ 
-      error: 'Müşteri eklenemedi',
-      details: error instanceof Error ? error.message : 'Bilinmeyen hata'
-    }, { status: 500 });
   }
 } 

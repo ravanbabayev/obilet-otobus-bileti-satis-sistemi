@@ -72,15 +72,22 @@ export default function YonetimPage() {
     try {
       setLoading(true);
       const response = await fetch('/api/dashboard/stats');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
-      if (data.success) {
-        setStats(data.data);
-      } else {
+      if (data.error) {
         console.error('Dashboard istatistikleri alınamadı:', data.error);
+        setStats(null);
+      } else {
+        setStats(data);
       }
     } catch (error) {
       console.error('Dashboard istatistikleri fetch hatası:', error);
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -90,15 +97,28 @@ export default function YonetimPage() {
     try {
       setActivitiesLoading(true);
       const response = await fetch('/api/dashboard/activities');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
-      if (data.success) {
-        setActivities(data.data);
-      } else {
+      if (data.error) {
         console.error('Son işlemler alınamadı:', data.error);
+        setActivities([]);
+      } else {
+        const formattedActivities = Array.isArray(data) ? data.map((activity: any) => ({
+          type: activity.tip || 'unknown',
+          description: activity.aciklama || 'Açıklama yok',
+          detail: activity.tutar ? `${activity.tutar} TL` : '',
+          timestamp: activity.tarih || new Date().toISOString()
+        })) : [];
+        setActivities(formattedActivities);
       }
     } catch (error) {
       console.error('Son işlemler fetch hatası:', error);
+      setActivities([]);
     } finally {
       setActivitiesLoading(false);
     }

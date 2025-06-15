@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { executeStoredProcedure, executeQuery } from '@/lib/db';
+import { executeStoredProcedure } from '@/lib/db';
 
 export async function GET() {
   try {
     console.log('Dashboard istatistikleri istendi');
 
-    // Get all stats in parallel for better performance
+    // Tüm istatistikleri stored procedure'lar ile paralel olarak al
     const [
       seferStats,
       biletStats, 
@@ -14,107 +14,87 @@ export async function GET() {
       istasyonStats,
       aracStats
     ] = await Promise.all([
-      // Sefer istatistikleri
-      executeQuery(`
-        SELECT 
-          COUNT(*) as toplam_sefer,
-          COUNT(CASE WHEN aktif_mi = TRUE AND kalkis_tarihi > NOW() THEN 1 END) as aktif_sefer,
-          COUNT(CASE WHEN 
-            CASE
-              WHEN varis_tarihi < NOW() THEN 'TAMAMLANDI'
-              WHEN kalkis_tarihi <= NOW() AND varis_tarihi > NOW() THEN 'DEVAM_EDIYOR'
-              WHEN aktif_mi = FALSE THEN 'PASIF'
-              ELSE 'BEKLEMEDE'
-            END = 'BEKLEMEDE' THEN 1 END) as beklemede_sefer
-        FROM sefer
-      `, []),
+      // Sefer istatistikleri için stored procedure kullan
+      executeStoredProcedure('sp_sefer_tumunu_getir', ['', 'TUMU', 0, null]),
+      
+      // Bilet istatistikleri için stored procedure kullan
+      executeStoredProcedure('sp_bilet_tumunu_getir', ['', 'TUMU', 0, null]),
 
-      // Bilet istatistikleri
-      executeQuery(`
-        SELECT 
-          COUNT(*) as toplam_bilet,
-          COUNT(CASE WHEN bilet_durumu = 'AKTIF' THEN 1 END) as aktif_bilet,
-          COUNT(CASE WHEN bilet_durumu = 'IPTAL' THEN 1 END) as iptal_bilet,
-          COUNT(CASE WHEN bilet_durumu = 'KULLANILDI' THEN 1 END) as kullanildi_bilet
-        FROM bilet
-      `, []),
+      // Müşteri istatistikleri için stored procedure kullan
+      executeStoredProcedure('sp_musteri_tumunu_getir', ['']),
 
-      // Müşteri istatistikleri  
-      executeQuery(`
-        SELECT COUNT(*) as toplam_musteri
-        FROM musteri
-      `, []),
+      // Firma istatistikleri için stored procedure kullan
+      executeStoredProcedure('sp_firma_tumunu_getir', ['', 'TUMU']),
 
-      // Firma istatistikleri
-      executeQuery(`
-        SELECT 
-          COUNT(*) as toplam_firma,
-          COUNT(CASE WHEN aktif_mi = TRUE THEN 1 END) as aktif_firma
-        FROM otobus_firmasi
-      `, []),
+      // İstasyon istatistikleri için stored procedure kullan
+      executeStoredProcedure('sp_istasyon_tumunu_getir', ['', '', 'TUMU']),
 
-      // İstasyon istatistikleri
-      executeQuery(`
-        SELECT 
-          COUNT(*) as toplam_istasyon,
-          COUNT(CASE WHEN aktif_mi = TRUE THEN 1 END) as aktif_istasyon
-        FROM istasyon
-      `, []),
-
-      // Araç istatistikleri
-      executeQuery(`
-        SELECT 
-          COUNT(*) as toplam_arac,
-          COUNT(CASE WHEN aktif_mi = TRUE THEN 1 END) as aktif_arac
-        FROM otobus
-      `, [])
+      // Araç istatistikleri için stored procedure kullan
+      executeStoredProcedure('sp_otobus_tumunu_getir', [0])
     ]);
+
+    // Sefer istatistiklerini hesapla
+    const seferData = Array.isArray(seferStats) ? seferStats : [];
+    const aktifSeferler = seferData.filter(s => s.aktif_mi === 1 || s.aktif_mi === true);
+    const beklemedeSeferler = aktifSeferler.filter(s => {
+      const kalkisZamani = new Date(s.kalkis_tarihi + ' ' + (s.kalkis_saati || '00:00:00'));
+      const varisZamani = new Date(s.varis_tarihi + ' ' + (s.varis_saati || '23:59:59'));
+      const simdi = new Date();
+      return kalkisZamani > simdi;
+    });
+
+    // Bilet istatistiklerini hesapla
+    const biletData = Array.isArray(biletStats) ? biletStats : [];
+    const aktifBiletler = biletData.filter(b => b.bilet_durumu === 'AKTIF');
+    const iptalBiletler = biletData.filter(b => b.bilet_durumu === 'IPTAL');
+    const kullanildiBiletler = biletData.filter(b => b.bilet_durumu === 'KULLANILDI');
+
+    // Diğer istatistikleri hesapla
+    const musteriData = Array.isArray(musteriStats) ? musteriStats : [];
+    const firmaData = Array.isArray(firmaStats) ? firmaStats : [];
+    const istasyonData = Array.isArray(istasyonStats) ? istasyonStats : [];
+    const aracData = Array.isArray(aracStats) ? aracStats : [];
+
+    const aktifFirmalar = firmaData.filter(f => f.aktif_mi === 1 || f.aktif_mi === true);
+    const aktifIstasyonlar = istasyonData.filter(i => i.aktif_mi === 1 || i.aktif_mi === true);
+    const aktifAraclar = aracData.filter(a => a.aktif_mi === 1 || a.aktif_mi === true);
 
     const dashboardStats = {
       seferler: {
-        toplam: seferStats[0]?.toplam_sefer || 0,
-        aktif: seferStats[0]?.aktif_sefer || 0,
-        beklemede: seferStats[0]?.beklemede_sefer || 0
+        toplam: seferData.length,
+        aktif: aktifSeferler.length,
+        beklemede: beklemedeSeferler.length
       },
       biletler: {
-        toplam: biletStats[0]?.toplam_bilet || 0,
-        aktif: biletStats[0]?.aktif_bilet || 0,
-        iptal: biletStats[0]?.iptal_bilet || 0,
-        kullanildi: biletStats[0]?.kullanildi_bilet || 0
+        toplam: biletData.length,
+        aktif: aktifBiletler.length,
+        iptal: iptalBiletler.length,
+        kullanildi: kullanildiBiletler.length
       },
       musteriler: {
-        toplam: musteriStats[0]?.toplam_musteri || 0
+        toplam: musteriData.length
       },
       firmalar: {
-        toplam: firmaStats[0]?.toplam_firma || 0,
-        aktif: firmaStats[0]?.aktif_firma || 0
+        toplam: firmaData.length,
+        aktif: aktifFirmalar.length
       },
       istasyonlar: {
-        toplam: istasyonStats[0]?.toplam_istasyon || 0,
-        aktif: istasyonStats[0]?.aktif_istasyon || 0
+        toplam: istasyonData.length,
+        aktif: aktifIstasyonlar.length
       },
       araclar: {
-        toplam: aracStats[0]?.toplam_arac || 0,
-        aktif: aracStats[0]?.aktif_arac || 0
+        toplam: aracData.length,
+        aktif: aktifAraclar.length
       }
     };
 
     console.log('Dashboard istatistikleri başarıyla alındı:', dashboardStats);
+    return NextResponse.json(dashboardStats);
 
-    return NextResponse.json({
-      success: true,
-      data: dashboardStats
-    });
-
-  } catch (error) {
-    console.error('Dashboard istatistikleri alınırken hata:', error);
-    
+  } catch (error: any) {
+    console.error('Dashboard istatistikleri hatası:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Dashboard istatistikleri alınamadı',
-        details: error instanceof Error ? error.message : 'Bilinmeyen hata'
-      },
+      { error: 'Dashboard istatistikleri yüklenirken hata oluştu' },
       { status: 500 }
     );
   }

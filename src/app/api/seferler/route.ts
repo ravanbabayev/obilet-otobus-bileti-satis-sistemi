@@ -6,8 +6,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const durum = searchParams.get('durum') || '';
-    const firma_id = searchParams.get('firma_id') || '';
+    const firma_id_param = searchParams.get('firma_id') || '';
     const tarih = searchParams.get('tarih') || '';
+
+    // Firma ID'yi integer'a çevir, boş ise 0 yap
+    const firma_id = firma_id_param && firma_id_param !== 'TUMU' && firma_id_param !== '' ? parseInt(firma_id_param) : 0;
 
     console.log('Sefer listesi istendi:', { search, durum, firma_id, tarih });
 

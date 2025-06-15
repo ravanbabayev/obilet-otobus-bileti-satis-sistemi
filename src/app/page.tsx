@@ -99,19 +99,31 @@ export default function YazihanePanel() {
     try {
       setLoading(true);
       const response = await fetch('/api/dashboard/main-stats');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
-      if (data.success) {
-        setStats(data.data);
-      } else {
+      // API direkt data döndürüyor, success field'ı yok
+      if (data.error) {
         console.error('Dashboard verileri alınamadı:', data.error);
-        // Fallback to static data if API fails
         setStats({
           bugunSatilanBilet: 0,
           bugunGelir: 0,
           aktifSeferSayisi: 0,
           bekleyenMusteriler: 0,
           recentSales: []
+        });
+      } else {
+        // API response'unu frontend formatına çevir
+        setStats({
+          bugunSatilanBilet: data.bilet || 0,
+          bugunGelir: parseFloat(data.gelir || '0'),
+          aktifSeferSayisi: data.sefer || 0,
+          bekleyenMusteriler: 0, // API'de yok, 0 olarak ayarla
+          recentSales: data.recentSales || []
         });
       }
     } catch (error) {
