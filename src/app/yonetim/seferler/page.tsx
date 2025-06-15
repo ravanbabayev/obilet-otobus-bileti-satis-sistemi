@@ -65,8 +65,8 @@ interface Otobus {
 interface Istasyon {
   istasyon_id: number;
   istasyon_adi: string;
-  il_adi: string;
-  ilce_adi: string;
+  il: string;
+  ilce: string;
 }
 
 export default function SeferYonetimi() {
@@ -86,6 +86,7 @@ export default function SeferYonetimi() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedSefer, setSelectedSefer] = useState<Sefer | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -113,10 +114,11 @@ export default function SeferYonetimi() {
       const response = await fetch(`/api/seferler?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setSeferler(data);
+        setSeferler(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Seferler yüklenirken hata:', error);
+      setSeferler([]);
     } finally {
       setLoading(false);
     }
@@ -128,10 +130,11 @@ export default function SeferYonetimi() {
       const response = await fetch('/api/firmalar?durum=AKTIF');
       if (response.ok) {
         const data = await response.json();
-        setFirmalar(data);
+        setFirmalar(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Firmalar yüklenirken hata:', error);
+      setFirmalar([]);
     }
   };
 
@@ -142,10 +145,11 @@ export default function SeferYonetimi() {
       const response = await fetch(`/api/otobusler${params}`);
       if (response.ok) {
         const data = await response.json();
-        setOtobusler(data);
+        setOtobusler(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Otobüsler yüklenirken hata:', error);
+      setOtobusler([]);
     }
   };
 
@@ -155,10 +159,11 @@ export default function SeferYonetimi() {
       const response = await fetch('/api/istasyonlar');
       if (response.ok) {
         const data = await response.json();
-        setIstasyonlar(data);
+        setIstasyonlar(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('İstasyonlar yüklenirken hata:', error);
+      setIstasyonlar([]);
     }
   };
 
@@ -277,19 +282,40 @@ export default function SeferYonetimi() {
   };
 
   // Edit modal açmak için
-  const openEditModal = (sefer: Sefer) => {
-    setSelectedSefer(sefer);
-    setFormData({
-      otobus_id: sefer.otobus_id?.toString() || "",
-      kalkis_istasyon_id: sefer.kalkis_istasyon_id?.toString() || "",
-      varis_istasyon_id: sefer.varis_istasyon_id?.toString() || "",
-      kalkis_tarihi: sefer.kalkis_tarihi,
-      kalkis_saati: sefer.kalkis_saati,
-      varis_tarihi: sefer.varis_tarihi,
-      varis_saati: sefer.varis_saati,
-      fiyat: sefer.fiyat.toString()
-    });
-    setShowEditModal(true);
+  const openEditModal = async (sefer: Sefer) => {
+    try {
+      setEditLoading(true);
+      console.log('Edit modal açılıyor, sefer:', sefer);
+      
+      // Sefer detayını API'dan al (ID'ler dahil)
+      const response = await fetch(`/api/seferler/${sefer.sefer_id}`);
+      if (response.ok) {
+        const detailedSefer = await response.json();
+        console.log('Detaylı sefer verisi:', detailedSefer);
+        
+        setSelectedSefer(detailedSefer);
+        const formDataToSet = {
+          otobus_id: detailedSefer.otobus_id?.toString() || "",
+          kalkis_istasyon_id: detailedSefer.kalkis_istasyon_id?.toString() || "",
+          varis_istasyon_id: detailedSefer.varis_istasyon_id?.toString() || "",
+          kalkis_tarihi: detailedSefer.kalkis_tarihi,
+          kalkis_saati: detailedSefer.kalkis_saati,
+          varis_tarihi: detailedSefer.varis_tarihi,
+          varis_saati: detailedSefer.varis_saati,
+          fiyat: detailedSefer.fiyat.toString()
+        };
+        console.log('Form verisi ayarlanıyor:', formDataToSet);
+        setFormData(formDataToSet);
+        setShowEditModal(true);
+      } else {
+        alert('Sefer detayları yüklenemedi');
+      }
+    } catch (error) {
+      console.error('Sefer detayı yüklenirken hata:', error);
+      alert('Sefer detayları yüklenemedi');
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   // Detail modal açmak için
@@ -383,7 +409,7 @@ export default function SeferYonetimi() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="TUMU">Tüm Firmalar</SelectItem>
-                    {firmalar.map((firma) => (
+                    {firmalar && firmalar.map((firma) => (
                       <SelectItem key={firma.firma_id} value={firma.firma_id.toString()}>
                         {firma.firma_adi}
                       </SelectItem>
@@ -481,8 +507,13 @@ export default function SeferYonetimi() {
                           variant="outline"
                           size="sm"
                           onClick={() => openEditModal(sefer)}
+                          disabled={editLoading}
                         >
-                          <Edit className="h-4 w-4" />
+                          {editLoading ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                          ) : (
+                            <Edit className="h-4 w-4" />
+                          )}
                         </Button>
                         <Button
                           variant="outline"
@@ -520,7 +551,7 @@ export default function SeferYonetimi() {
                   <SelectValue placeholder="Otobüs seçin" />
                 </SelectTrigger>
                 <SelectContent>
-                  {otobusler.map((otobus) => (
+                  {otobusler && otobusler.map((otobus) => (
                     <SelectItem key={otobus.otobus_id} value={otobus.otobus_id.toString()}>
                       {otobus.plaka} - {otobus.firma_adi} ({otobus.koltuk_sayisi} koltuk)
                     </SelectItem>
@@ -548,9 +579,9 @@ export default function SeferYonetimi() {
                   <SelectValue placeholder="Kalkış istasyonu" />
                 </SelectTrigger>
                 <SelectContent>
-                  {istasyonlar.map((istasyon) => (
+                  {istasyonlar && istasyonlar.map((istasyon) => (
                     <SelectItem key={istasyon.istasyon_id} value={istasyon.istasyon_id.toString()}>
-                      {istasyon.istasyon_adi} - {istasyon.il_adi}/{istasyon.ilce_adi}
+                      {istasyon.istasyon_adi} - {istasyon.il}/{istasyon.ilce}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -564,9 +595,9 @@ export default function SeferYonetimi() {
                   <SelectValue placeholder="Varış istasyonu" />
                 </SelectTrigger>
                 <SelectContent>
-                  {istasyonlar.map((istasyon) => (
+                  {istasyonlar && istasyonlar.map((istasyon) => (
                     <SelectItem key={istasyon.istasyon_id} value={istasyon.istasyon_id.toString()}>
-                      {istasyon.istasyon_adi} - {istasyon.il_adi}/{istasyon.ilce_adi}
+                      {istasyon.istasyon_adi} - {istasyon.il}/{istasyon.ilce}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -627,18 +658,22 @@ export default function SeferYonetimi() {
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Sefer Düzenle</DialogTitle>
+            <DialogTitle>Sefer Düzenle #{selectedSefer?.sefer_id}</DialogTitle>
           </DialogHeader>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Otobüs</label>
-              <Select value={formData.otobus_id} onValueChange={(value) => setFormData({...formData, otobus_id: value})}>
+              <Select 
+                key={`edit-otobus-${selectedSefer?.sefer_id}`}
+                value={formData.otobus_id} 
+                onValueChange={(value) => setFormData({...formData, otobus_id: value})}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Otobüs seçin" />
                 </SelectTrigger>
                 <SelectContent>
-                  {otobusler.map((otobus) => (
+                  {otobusler && otobusler.map((otobus) => (
                     <SelectItem key={otobus.otobus_id} value={otobus.otobus_id.toString()}>
                       {otobus.plaka} - {otobus.firma_adi} ({otobus.koltuk_sayisi} koltuk)
                     </SelectItem>
@@ -650,6 +685,7 @@ export default function SeferYonetimi() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Fiyat (₺)</label>
               <Input
+                key={`edit-fiyat-${selectedSefer?.sefer_id}`}
                 type="number"
                 step="0.01"
                 min="0"
@@ -661,14 +697,18 @@ export default function SeferYonetimi() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Kalkış İstasyonu</label>
-              <Select value={formData.kalkis_istasyon_id} onValueChange={(value) => setFormData({...formData, kalkis_istasyon_id: value})}>
+              <Select 
+                key={`edit-kalkis-${selectedSefer?.sefer_id}`}
+                value={formData.kalkis_istasyon_id} 
+                onValueChange={(value) => setFormData({...formData, kalkis_istasyon_id: value})}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Kalkış istasyonu" />
                 </SelectTrigger>
                 <SelectContent>
-                  {istasyonlar.map((istasyon) => (
+                  {istasyonlar && istasyonlar.map((istasyon) => (
                     <SelectItem key={istasyon.istasyon_id} value={istasyon.istasyon_id.toString()}>
-                      {istasyon.istasyon_adi} - {istasyon.il_adi}/{istasyon.ilce_adi}
+                      {istasyon.istasyon_adi} - {istasyon.il}/{istasyon.ilce}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -677,14 +717,18 @@ export default function SeferYonetimi() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Varış İstasyonu</label>
-              <Select value={formData.varis_istasyon_id} onValueChange={(value) => setFormData({...formData, varis_istasyon_id: value})}>
+              <Select 
+                key={`edit-varis-${selectedSefer?.sefer_id}`}
+                value={formData.varis_istasyon_id} 
+                onValueChange={(value) => setFormData({...formData, varis_istasyon_id: value})}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Varış istasyonu" />
                 </SelectTrigger>
                 <SelectContent>
-                  {istasyonlar.map((istasyon) => (
+                  {istasyonlar && istasyonlar.map((istasyon) => (
                     <SelectItem key={istasyon.istasyon_id} value={istasyon.istasyon_id.toString()}>
-                      {istasyon.istasyon_adi} - {istasyon.il_adi}/{istasyon.ilce_adi}
+                      {istasyon.istasyon_adi} - {istasyon.il}/{istasyon.ilce}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -694,6 +738,7 @@ export default function SeferYonetimi() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Kalkış Tarihi</label>
               <Input
+                key={`edit-kalkis-tarih-${selectedSefer?.sefer_id}`}
                 type="date"
                 value={formData.kalkis_tarihi}
                 onChange={(e) => setFormData({...formData, kalkis_tarihi: e.target.value})}
@@ -703,6 +748,7 @@ export default function SeferYonetimi() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Kalkış Saati</label>
               <Input
+                key={`edit-kalkis-saat-${selectedSefer?.sefer_id}`}
                 type="time"
                 value={formData.kalkis_saati}
                 onChange={(e) => setFormData({...formData, kalkis_saati: e.target.value})}
@@ -712,6 +758,7 @@ export default function SeferYonetimi() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Varış Tarihi</label>
               <Input
+                key={`edit-varis-tarih-${selectedSefer?.sefer_id}`}
                 type="date"
                 min={formData.kalkis_tarihi}
                 value={formData.varis_tarihi}
@@ -722,6 +769,7 @@ export default function SeferYonetimi() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Varış Saati</label>
               <Input
+                key={`edit-varis-saat-${selectedSefer?.sefer_id}`}
                 type="time"
                 value={formData.varis_saati}
                 onChange={(e) => setFormData({...formData, varis_saati: e.target.value})}

@@ -21,47 +21,43 @@ export async function GET(request: NextRequest) {
       // Saklı yordam yoksa basit sorgu kullan
       console.log('Saklı yordam bulunamadı, basit sorgu kullanılıyor:', spError);
       
-      let query = `
-        SELECT 
-          s.sefer_id,
-          s.kalkis_tarihi,
-          s.kalkis_saati,
-          s.varis_tarihi,
-          s.varis_saati,
-          s.fiyat,
-          s.aktif_mi,
-          s.created_at,
-          s.updated_at,
-          o.plaka,
-          o.koltuk_sayisi,
-          f.firma_adi,
-          ki.il_adi as kalkis_il,
-          ki.ilce_adi as kalkis_ilce,
-          vi.il_adi as varis_il,
-          vi.ilce_adi as varis_ilce,
-          COUNT(CASE WHEN b.durum = 'SATIN_ALINDI' THEN 1 END) as satilan_koltuk,
-          (o.koltuk_sayisi - COUNT(CASE WHEN b.durum = 'SATIN_ALINDI' THEN 1 END)) as bos_koltuk
-        FROM sefer s
-        INNER JOIN otobus o ON s.otobus_id = o.otobus_id
-        INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
-        INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
-        INNER JOIN il ki ON ks.il_id = ki.il_id
-        INNER JOIN ilce kic ON ks.ilce_id = kic.ilce_id
-        INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
-        INNER JOIN il vi ON vs.il_id = vi.il_id
-        INNER JOIN ilce vic ON vs.ilce_id = vic.ilce_id
-        LEFT JOIN bilet b ON s.sefer_id = b.sefer_id AND b.durum != 'IPTAL'
-        WHERE 1=1
-      `;
+             let query = `
+         SELECT 
+           s.sefer_id,
+           DATE(s.kalkis_tarihi) as kalkis_tarihi,
+           TIME(s.kalkis_tarihi) as kalkis_saati,
+           DATE(s.varis_tarihi) as varis_tarihi,
+           TIME(s.varis_tarihi) as varis_saati,
+           s.ucret as fiyat,
+           s.aktif_mi,
+           s.created_at,
+           s.updated_at,
+           o.plaka,
+           o.koltuk_sayisi,
+           f.firma_adi,
+           ks.il as kalkis_il,
+           ks.ilce as kalkis_ilce,
+           vs.il as varis_il,
+           vs.ilce as varis_ilce,
+           COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END) as satilan_koltuk,
+           (o.koltuk_sayisi - COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END)) as bos_koltuk
+         FROM sefer s
+         INNER JOIN otobus o ON s.otobus_id = o.otobus_id
+         INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
+         INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
+         INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
+         LEFT JOIN bilet b ON s.sefer_id = b.sefer_id AND b.bilet_durumu != 'IPTAL'
+         WHERE 1=1
+       `;
 
       const params: any[] = [];
 
-      // Arama filtresi
-      if (search && search.trim()) {
-        query += ` AND (f.firma_adi LIKE ? OR o.plaka LIKE ? OR ki.il_adi LIKE ? OR vi.il_adi LIKE ?)`;
-        const searchPattern = `%${search}%`;
-        params.push(searchPattern, searchPattern, searchPattern, searchPattern);
-      }
+             // Arama filtresi
+       if (search && search.trim()) {
+         query += ` AND (f.firma_adi LIKE ? OR o.plaka LIKE ? OR ks.il LIKE ? OR vs.il LIKE ?)`;
+         const searchPattern = `%${search}%`;
+         params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+       }
 
       // Durum filtresi
       if (durum && durum !== 'TUMU') {
@@ -84,10 +80,10 @@ export async function GET(request: NextRequest) {
         params.push(tarih);
       }
 
-      query += ` 
-        GROUP BY s.sefer_id, o.otobus_id, f.firma_id, ks.istasyon_id, vs.istasyon_id
-        ORDER BY s.kalkis_tarihi DESC, s.kalkis_saati DESC
-      `;
+             query += ` 
+         GROUP BY s.sefer_id
+         ORDER BY s.kalkis_tarihi DESC
+       `;
 
       console.log('Executing query:', query);
       console.log('With params:', params);
@@ -159,15 +155,17 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+      // Tarih ve saati birleştir
+      const kalkisDateTime = `${kalkis_tarihi} ${kalkis_saati}:00`;
+      const varisDateTime = `${varis_tarihi} ${varis_saati}:00`;
+
       // Önce saklı yordamı dene
       const results = await executeStoredProcedure('sp_sefer_ekle', [
         otobus_id,
         kalkis_istasyon_id,
         varis_istasyon_id,
-        kalkis_tarihi,
-        kalkis_saati,
-        varis_tarihi,
-        varis_saati,
+        kalkisDateTime,
+        varisDateTime,
         fiyat
       ]);
 
@@ -187,12 +185,12 @@ export async function POST(request: NextRequest) {
       // Saklı yordam yoksa basit sorgu kullan
       console.log('Saklı yordam bulunamadı, basit sorgu kullanılıyor:', spError);
 
-      // Aynı otobüsün aynı tarih ve saatte başka seferi var mı kontrol et
-      const existingSefer = await executeQuery(
-        `SELECT sefer_id FROM sefer 
-         WHERE otobus_id = ? AND kalkis_tarihi = ? AND kalkis_saati = ? AND aktif_mi = TRUE`,
-        [otobus_id, kalkis_tarihi, kalkis_saati]
-      );
+             // Aynı otobüsün aynı tarih ve saatte başka seferi var mı kontrol et
+       const existingSefer = await executeQuery(
+         `SELECT sefer_id FROM sefer 
+          WHERE otobus_id = ? AND DATE(kalkis_tarihi) = ? AND TIME(kalkis_tarihi) = ? AND aktif_mi = TRUE`,
+         [otobus_id, kalkis_tarihi, kalkis_saati]
+       );
       
       if (Array.isArray(existingSefer) && existingSefer.length > 0) {
         return NextResponse.json(
@@ -256,17 +254,20 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Sefer ekle
-      console.log('Sefer ekleniyor...');
-      const result: any = await executeQuery(
-        `INSERT INTO sefer (
-          otobus_id, kalkis_istasyon_id, varis_istasyon_id, 
-          kalkis_tarihi, kalkis_saati, varis_tarihi, varis_saati, 
-          fiyat, aktif_mi
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
-        [otobus_id, kalkis_istasyon_id, varis_istasyon_id, 
-         kalkis_tarihi, kalkis_saati, varis_tarihi, varis_saati, fiyat]
-      );
+             // Sefer ekle
+       console.log('Sefer ekleniyor...');
+       const kalkisDateTime = `${kalkis_tarihi} ${kalkis_saati}:00`;
+       const varisDateTime = `${varis_tarihi} ${varis_saati}:00`;
+       
+       const result: any = await executeQuery(
+         `INSERT INTO sefer (
+           otobus_id, kalkis_istasyon_id, varis_istasyon_id, 
+           kalkis_tarihi, varis_tarihi, 
+           ucret, aktif_mi
+         ) VALUES (?, ?, ?, ?, ?, ?, TRUE)`,
+         [otobus_id, kalkis_istasyon_id, varis_istasyon_id, 
+          kalkisDateTime, varisDateTime, fiyat]
+       );
 
       console.log('Sefer başarıyla eklendi, ID:', result.insertId);
 

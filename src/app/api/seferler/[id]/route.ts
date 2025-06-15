@@ -9,7 +9,7 @@ export async function GET(
   try {
     const resolvedParams = await params;
     const seferId = parseInt(resolvedParams.id);
-    
+
     if (isNaN(seferId)) {
       return NextResponse.json(
         { error: 'Geçersiz sefer ID' }, 
@@ -33,45 +33,41 @@ export async function GET(
       // Saklı yordam yoksa basit sorgu kullan
       console.log('Saklı yordam bulunamadı, basit sorgu kullanılıyor:', spError);
       
-      const query = `
-        SELECT 
-          s.sefer_id,
-          s.kalkis_tarihi,
-          s.kalkis_saati,
-          s.varis_tarihi,
-          s.varis_saati,
-          s.fiyat,
-          s.aktif_mi,
-          s.created_at,
-          s.updated_at,
-          o.otobus_id,
-          o.plaka,
-          o.koltuk_sayisi,
-          f.firma_id,
-          f.firma_adi,
-          ks.istasyon_id as kalkis_istasyon_id,
-          ks.istasyon_adi as kalkis_istasyon_adi,
-          ki.il_adi as kalkis_il,
-          kic.ilce_adi as kalkis_ilce,
-          vs.istasyon_id as varis_istasyon_id,
-          vs.istasyon_adi as varis_istasyon_adi,
-          vi.il_adi as varis_il,
-          vic.ilce_adi as varis_ilce,
-          COUNT(CASE WHEN b.durum = 'SATIN_ALINDI' THEN 1 END) as satilan_koltuk,
-          (o.koltuk_sayisi - COUNT(CASE WHEN b.durum = 'SATIN_ALINDI' THEN 1 END)) as bos_koltuk
-        FROM sefer s
-        INNER JOIN otobus o ON s.otobus_id = o.otobus_id
-        INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
-        INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
-        INNER JOIN il ki ON ks.il_id = ki.il_id
-        INNER JOIN ilce kic ON ks.ilce_id = kic.ilce_id
-        INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
-        INNER JOIN il vi ON vs.il_id = vi.il_id
-        INNER JOIN ilce vic ON vs.ilce_id = vic.ilce_id
-        LEFT JOIN bilet b ON s.sefer_id = b.sefer_id AND b.durum != 'IPTAL'
-        WHERE s.sefer_id = ?
-        GROUP BY s.sefer_id
-      `;
+             const query = `
+         SELECT 
+           s.sefer_id,
+           DATE(s.kalkis_tarihi) as kalkis_tarihi,
+           TIME(s.kalkis_tarihi) as kalkis_saati,
+           DATE(s.varis_tarihi) as varis_tarihi,
+           TIME(s.varis_tarihi) as varis_saati,
+           s.ucret as fiyat,
+           s.aktif_mi,
+           s.created_at,
+           s.updated_at,
+           o.otobus_id,
+           o.plaka,
+           o.koltuk_sayisi,
+           f.firma_id,
+           f.firma_adi,
+           ks.istasyon_id as kalkis_istasyon_id,
+           ks.istasyon_adi as kalkis_istasyon_adi,
+           ks.il as kalkis_il,
+           ks.ilce as kalkis_ilce,
+           vs.istasyon_id as varis_istasyon_id,
+           vs.istasyon_adi as varis_istasyon_adi,
+           vs.il as varis_il,
+           vs.ilce as varis_ilce,
+           COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END) as satilan_koltuk,
+           (o.koltuk_sayisi - COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END)) as bos_koltuk
+         FROM sefer s
+         INNER JOIN otobus o ON s.otobus_id = o.otobus_id
+         INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
+         INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
+         INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
+         LEFT JOIN bilet b ON s.sefer_id = b.sefer_id AND b.bilet_durumu != 'IPTAL'
+         WHERE s.sefer_id = ?
+         GROUP BY s.sefer_id
+       `;
       
       const results: any = await executeQuery(query, [seferId]);
       
@@ -150,16 +146,18 @@ export async function PUT(
     }
 
     try {
+      // Tarih ve saati birleştir
+      const kalkisDateTime = `${kalkis_tarihi} ${kalkis_saati}:00`;
+      const varisDateTime = `${varis_tarihi} ${varis_saati}:00`;
+
       // Önce saklı yordamı dene
       const results = await executeStoredProcedure('sp_sefer_guncelle', [
         seferId,
         otobus_id,
         kalkis_istasyon_id,
         varis_istasyon_id,
-        kalkis_tarihi,
-        kalkis_saati,
-        varis_tarihi,
-        varis_saati,
+        kalkisDateTime,
+        varisDateTime,
         fiyat
       ]);
 
@@ -194,7 +192,7 @@ export async function PUT(
       // Satılmış bilet kontrolü
       const soldTickets = await executeQuery(
         `SELECT COUNT(*) as count FROM bilet 
-         WHERE sefer_id = ? AND durum = 'SATIN_ALINDI'`,
+         WHERE sefer_id = ? AND bilet_durumu = 'AKTIF'`,
         [seferId]
       );
       
@@ -208,7 +206,7 @@ export async function PUT(
       // Aynı otobüsün aynı tarih ve saatte başka seferi var mı kontrol et (kendisi hariç)
       const conflictingSefer = await executeQuery(
         `SELECT sefer_id FROM sefer 
-         WHERE otobus_id = ? AND kalkis_tarihi = ? AND kalkis_saati = ? 
+         WHERE otobus_id = ? AND DATE(kalkis_tarihi) = ? AND TIME(kalkis_tarihi) = ? 
          AND aktif_mi = TRUE AND sefer_id != ?`,
         [otobus_id, kalkis_tarihi, kalkis_saati, seferId]
       );
@@ -272,20 +270,23 @@ export async function PUT(
       }
 
       // Seferi güncelle
+      const kalkisDateTime = `${kalkis_tarihi} ${kalkis_saati}:00`;
+      const varisDateTime = `${varis_tarihi} ${varis_saati}:00`;
+      
       await executeQuery(
         `UPDATE sefer 
          SET otobus_id = ?, kalkis_istasyon_id = ?, varis_istasyon_id = ?,
-             kalkis_tarihi = ?, kalkis_saati = ?, varis_tarihi = ?, varis_saati = ?,
-             fiyat = ?, updated_at = CURRENT_TIMESTAMP
+             kalkis_tarihi = ?, varis_tarihi = ?,
+             ucret = ?, updated_at = CURRENT_TIMESTAMP
          WHERE sefer_id = ?`,
         [otobus_id, kalkis_istasyon_id, varis_istasyon_id, 
-         kalkis_tarihi, kalkis_saati, varis_tarihi, varis_saati, fiyat, seferId]
+         kalkisDateTime, varisDateTime, fiyat, seferId]
       );
 
-      return NextResponse.json({
+    return NextResponse.json({
         success: true,
         message: 'Sefer başarıyla güncellendi.'
-      });
+    });
     }
 
   } catch (error) {
@@ -355,12 +356,12 @@ export async function DELETE(
       // Satılmış bilet kontrolü
       const soldTickets = await executeQuery(
         `SELECT COUNT(*) as count FROM bilet 
-         WHERE sefer_id = ? AND durum = 'SATIN_ALINDI'`,
+         WHERE sefer_id = ? AND bilet_durumu = 'AKTIF'`,
         [seferId]
       );
       
       if (Array.isArray(soldTickets) && soldTickets.length > 0 && (soldTickets[0] as any).count > 0) {
-        return NextResponse.json(
+    return NextResponse.json(
           { error: 'Bu sefere ait satılmış biletler bulunmaktadır. Önce biletleri iptal ediniz.' }, 
           { status: 400 }
         );

@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db';
+import { executeQuery, executeStoredProcedure } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const firma_id = searchParams.get('firma_id');
+    const firma_id_param = firma_id && firma_id !== 'TUMU' && firma_id !== '0' ? parseInt(firma_id) : 0;
+
+    try {
+      // Önce saklı yordam ile dene
+      const storedProcResult = await executeStoredProcedure('sp_otobus_tumunu_getir', [firma_id_param]);
+      
+      if (Array.isArray(storedProcResult)) {
+        return NextResponse.json(storedProcResult);
+      }
+    } catch (spError) {
+      console.log('Saklı yordam bulunamadı, basit sorgu kullanılıyor:', spError);
+    }
 
     let query = `
       SELECT 

@@ -377,6 +377,56 @@ BEGIN
 END $$
 DELIMITER ;
 
+-- Sefer listesi getir (filtreleme ile)
+DELIMITER $$
+CREATE PROCEDURE sp_sefer_tumunu_getir(
+    IN p_search VARCHAR(255),
+    IN p_durum VARCHAR(20),
+    IN p_firma_id INT,
+    IN p_tarih DATE
+)
+BEGIN
+    SELECT
+      s.sefer_id,
+      DATE(s.kalkis_tarihi) as kalkis_tarihi,
+      TIME(s.kalkis_tarihi) as kalkis_saati,
+      DATE(s.varis_tarihi) as varis_tarihi,
+      TIME(s.varis_tarihi) as varis_saati,
+      s.ucret as fiyat,
+      s.aktif_mi,
+      s.created_at,
+      s.updated_at,
+      o.plaka,
+      o.koltuk_sayisi,
+      f.firma_adi,
+      ks.il as kalkis_il,
+      ks.ilce as kalkis_ilce,
+      vs.il as varis_il,
+      vs.ilce as varis_ilce,
+      COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END) as satilan_koltuk,
+      (o.koltuk_sayisi - COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END)) as bos_koltuk
+    FROM sefer s
+    INNER JOIN otobus o ON s.otobus_id = o.otobus_id
+    INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
+    INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
+    INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
+    LEFT JOIN bilet b ON s.sefer_id = b.sefer_id AND b.bilet_durumu != 'IPTAL'
+    WHERE 1=1
+      AND (p_search IS NULL OR p_search = '' OR 
+           f.firma_adi LIKE CONCAT('%', p_search, '%') OR
+           o.plaka LIKE CONCAT('%', p_search, '%') OR
+           ks.il LIKE CONCAT('%', p_search, '%') OR
+           vs.il LIKE CONCAT('%', p_search, '%'))
+      AND (p_durum IS NULL OR p_durum = 'TUMU' OR 
+           (p_durum = 'AKTIF' AND s.aktif_mi = TRUE) OR
+           (p_durum = 'PASIF' AND s.aktif_mi = FALSE))
+      AND (p_firma_id IS NULL OR p_firma_id = 0 OR o.firma_id = p_firma_id)
+      AND (p_tarih IS NULL OR DATE(s.kalkis_tarihi) = p_tarih)
+    GROUP BY s.sefer_id
+    ORDER BY s.kalkis_tarihi DESC;
+END $$
+DELIMITER ;
+
 -- Sefer detayı getir
 DELIMITER $$
 CREATE PROCEDURE sp_sefer_detay(
@@ -408,6 +458,139 @@ BEGIN
     JOIN istasyon ki ON s.kalkis_istasyon_id = ki.istasyon_id
     JOIN istasyon vi ON s.varis_istasyon_id = vi.istasyon_id
     WHERE s.sefer_id = p_sefer_id;
+END $$
+DELIMITER ;
+
+-- Sefer güncelle
+DELIMITER $$
+CREATE PROCEDURE sp_sefer_guncelle(
+    IN p_sefer_id INT,
+    IN p_otobus_id INT,
+    IN p_kalkis_istasyon_id INT,
+    IN p_varis_istasyon_id INT,
+    IN p_kalkis_tarihi DATETIME,
+    IN p_varis_tarihi DATETIME,
+    IN p_ucret DECIMAL(10, 2)
+)
+BEGIN
+    DECLARE v_error_msg VARCHAR(255);
+    DECLARE v_affected_rows INT;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        GET DIAGNOSTICS CONDITION 1
+            v_error_msg = MESSAGE_TEXT;
+        SELECT 'HATA' AS durum, v_error_msg AS mesaj;
+    END;
+    
+    START TRANSACTION;
+    
+    -- İstasyon kontrolü
+    IF p_kalkis_istasyon_id = p_varis_istasyon_id THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Kalkış ve varış istasyonları aynı olamaz.';
+    END IF;
+    
+    -- Tarih kontrolü
+    IF p_varis_tarihi <= p_kalkis_tarihi THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Varış tarihi kalkış tarihinden sonra olmalıdır.';
+    END IF;
+    
+    -- Sefer varlık kontrolü
+    IF NOT EXISTS (SELECT 1 FROM sefer WHERE sefer_id = p_sefer_id) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Sefer bulunamadı.';
+    END IF;
+    
+    UPDATE sefer SET
+        otobus_id = p_otobus_id,
+        kalkis_istasyon_id = p_kalkis_istasyon_id,
+        varis_istasyon_id = p_varis_istasyon_id,
+        kalkis_tarihi = p_kalkis_tarihi,
+        varis_tarihi = p_varis_tarihi,
+        ucret = p_ucret,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE sefer_id = p_sefer_id;
+    
+    SET v_affected_rows = ROW_COUNT();
+    
+    IF v_affected_rows = 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Sefer güncellenemedi.';
+    END IF;
+    
+    COMMIT;
+    
+    SELECT 'BAŞARILI' AS durum, 'Sefer başarıyla güncellendi.' AS mesaj;
+END $$
+DELIMITER ;
+
+-- Sefer sil
+DELIMITER $$
+CREATE PROCEDURE sp_sefer_sil(
+    IN p_sefer_id INT
+)
+BEGIN
+    DECLARE v_error_msg VARCHAR(255);
+    DECLARE v_bilet_sayisi INT;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        GET DIAGNOSTICS CONDITION 1
+            v_error_msg = MESSAGE_TEXT;
+        SELECT 'HATA' AS durum, v_error_msg AS mesaj;
+    END;
+    
+    START TRANSACTION;
+    
+    -- Sefer varlık kontrolü
+    IF NOT EXISTS (SELECT 1 FROM sefer WHERE sefer_id = p_sefer_id) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Sefer bulunamadı.';
+    END IF;
+    
+    -- Aktif bilet kontrolü
+    SELECT COUNT(*) INTO v_bilet_sayisi
+    FROM bilet
+    WHERE sefer_id = p_sefer_id AND bilet_durumu = 'AKTIF';
+    
+    IF v_bilet_sayisi > 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Bu sefere ait aktif biletler var. Önce biletleri iptal edin.';
+    END IF;
+    
+    -- Seferi sil
+    DELETE FROM sefer WHERE sefer_id = p_sefer_id;
+    
+    COMMIT;
+    
+    SELECT 'BAŞARILI' AS durum, 'Sefer başarıyla silindi.' AS mesaj;
+END $$
+DELIMITER ;
+
+-- Otobüsleri getir
+DELIMITER $$
+CREATE PROCEDURE sp_otobus_tumunu_getir(
+    IN p_firma_id INT
+)
+BEGIN
+    SELECT 
+        o.otobus_id,
+        o.plaka,
+        o.model,
+        o.koltuk_sayisi,
+        o.ozellikler,
+        o.aktif_mi,
+        f.firma_id,
+        f.firma_adi
+    FROM otobus o
+    INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
+    WHERE (p_firma_id IS NULL OR p_firma_id = 0 OR o.firma_id = p_firma_id)
+      AND o.aktif_mi = TRUE
+    ORDER BY f.firma_adi, o.plaka;
 END $$
 DELIMITER ;
 
