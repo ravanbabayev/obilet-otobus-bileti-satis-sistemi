@@ -45,12 +45,27 @@ interface Koltuk {
   cinsiyet?: "E" | "K";
 }
 
+interface Musteri {
+  musteri_id: number;
+  ad: string;
+  soyad: string;
+  tc_kimlik_no: string;
+  telefon: string;
+  email?: string;
+}
+
 export default function YazihaneBeliletSat() {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [seferler, setSeferler] = useState<Sefer[]>([]);
   const [koltuklar, setKoltuklar] = useState<Koltuk[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Müşteri seçimi
+  const [musteriler, setMusteriler] = useState<Musteri[]>([]);
+  const [musteriSecimi, setMusteriSecimi] = useState<"yeni" | "kayitli">("yeni");
+  const [secilenMusteri, setSecilenMusteri] = useState<Musteri | null>(null);
+  const [musteriArama, setMusteriArama] = useState("");
   
   // Arama formu
   const [kalkisIl, setKalkisIl] = useState("");
@@ -94,6 +109,49 @@ export default function YazihaneBeliletSat() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Müşteri listesini yükle
+  const musteriListesiYukle = async () => {
+    try {
+      const response = await fetch(`/api/musteriler?search=${encodeURIComponent(musteriArama)}`);
+      const data = await response.json();
+      
+      if (response.ok && Array.isArray(data)) {
+        setMusteriler(data);
+      } else {
+        setMusteriler([]);
+      }
+    } catch (error) {
+      console.error('Müşteri listesi yüklenirken hata:', error);
+      setMusteriler([]);
+    }
+  };
+
+  // Müşteri seçildiğinde bilgileri doldur
+  const musteriSec = (musteri: Musteri) => {
+    setSecilenMusteri(musteri);
+    setMusteriAd(musteri.ad);
+    setMusteriSoyad(musteri.soyad);
+    setMusteriTc(musteri.tc_kimlik_no);
+    setMusteriTelefon(musteri.telefon);
+    setMusteriEmail(musteri.email || "");
+  };
+
+  // Müşteri seçimi değiştiğinde formu temizle
+  const musteriSecimiDegistir = (secim: "yeni" | "kayitli") => {
+    setMusteriSecimi(secim);
+    setSecilenMusteri(null);
+    
+    if (secim === "yeni") {
+      setMusteriAd("");
+      setMusteriSoyad("");
+      setMusteriTc("");
+      setMusteriTelefon("");
+      setMusteriEmail("");
+    } else {
+      musteriListesiYukle();
+    }
   };
 
   const seferAra = async () => {
@@ -279,9 +337,21 @@ export default function YazihaneBeliletSat() {
     setMusteriTc("");
     setMusteriTelefon("");
     setMusteriEmail("");
+    setMusteriCinsiyet("E");
+    setOdemeTuru("nakit");
+    setPersonelAdi("Admin Kullanıcı");
     setNotlar("");
     setSeferler([]);
     setKoltuklar([]);
+    setKalkisIl("");
+    setVarisIl("");
+    setTarih(new Date().toISOString().split('T')[0]);
+    
+    // Müşteri seçimi bilgilerini temizle
+    setMusteriSecimi("yeni");
+    setSecilenMusteri(null);
+    setMusteriler([]);
+    setMusteriArama("");
   };
 
   return (
@@ -591,6 +661,107 @@ export default function YazihaneBeliletSat() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Müşteri Seçim Türü */}
+                  <div>
+                    <Label>Müşteri Seçimi</Label>
+                    <div className="flex space-x-4 mt-2">
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          name="musteriSecimi"
+                          value="yeni"
+                          checked={musteriSecimi === "yeni"}
+                          onChange={() => musteriSecimiDegistir("yeni")}
+                          className="text-blue-600"
+                        />
+                        <span>Yeni Müşteri</span>
+                      </label>
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          name="musteriSecimi"
+                          value="kayitli"
+                          checked={musteriSecimi === "kayitli"}
+                          onChange={() => musteriSecimiDegistir("kayitli")}
+                          className="text-blue-600"
+                        />
+                        <span>Kayıtlı Müşteri</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Kayıtlı Müşteri Seçimi */}
+                  {musteriSecimi === "kayitli" && (
+                    <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <Label htmlFor="musteriArama">Müşteri Ara</Label>
+                        <div className="flex space-x-2">
+                          <Input
+                            id="musteriArama"
+                            value={musteriArama}
+                            onChange={(e) => setMusteriArama(e.target.value)}
+                            placeholder="Ad, soyad, TC veya telefon ile ara..."
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={musteriListesiYukle}
+                            disabled={loading}
+                          >
+                            <Search className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Müşteri Listesi */}
+                      {musteriler.length > 0 && (
+                        <div className="max-h-48 overflow-y-auto border rounded-lg">
+                          {musteriler.map((musteri) => (
+                            <div
+                              key={musteri.musteri_id}
+                              className={`p-3 border-b cursor-pointer hover:bg-gray-100 ${
+                                secilenMusteri?.musteri_id === musteri.musteri_id ? 'bg-blue-50 border-blue-200' : ''
+                              }`}
+                              onClick={() => musteriSec(musteri)}
+                            >
+                              <div className="font-medium">{musteri.ad} {musteri.soyad}</div>
+                              <div className="text-sm text-gray-500">
+                                TC: {musteri.tc_kimlik_no} | Tel: {musteri.telefon}
+                              </div>
+                              {musteri.email && (
+                                <div className="text-sm text-gray-500">Email: {musteri.email}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {secilenMusteri && (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-blue-800">
+                                Seçilen: {secilenMusteri.ad} {secilenMusteri.soyad}
+                              </div>
+                              <div className="text-sm text-blue-600">
+                                TC: {secilenMusteri.tc_kimlik_no}
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSecilenMusteri(null)}
+                            >
+                              Temizle
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Müşteri Bilgileri Formu */}
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="ad">Ad *</Label>
@@ -599,6 +770,7 @@ export default function YazihaneBeliletSat() {
                         value={musteriAd}
                         onChange={(e) => setMusteriAd(e.target.value)}
                         placeholder="Yolcu adı"
+                        disabled={musteriSecimi === "kayitli" && secilenMusteri !== null}
                       />
                     </div>
                     <div>
@@ -608,6 +780,7 @@ export default function YazihaneBeliletSat() {
                         value={musteriSoyad}
                         onChange={(e) => setMusteriSoyad(e.target.value)}
                         placeholder="Yolcu soyadı"
+                        disabled={musteriSecimi === "kayitli" && secilenMusteri !== null}
                       />
                     </div>
                   </div>
@@ -620,6 +793,7 @@ export default function YazihaneBeliletSat() {
                       onChange={(e) => setMusteriTc(e.target.value)}
                       placeholder="11 haneli TC kimlik numarası"
                       maxLength={11}
+                      disabled={musteriSecimi === "kayitli" && secilenMusteri !== null}
                     />
                   </div>
 
@@ -630,6 +804,7 @@ export default function YazihaneBeliletSat() {
                       value={musteriTelefon}
                       onChange={(e) => setMusteriTelefon(e.target.value)}
                       placeholder="0555 123 45 67"
+                      disabled={musteriSecimi === "kayitli" && secilenMusteri !== null}
                     />
                   </div>
 
@@ -641,6 +816,7 @@ export default function YazihaneBeliletSat() {
                       value={musteriEmail}
                       onChange={(e) => setMusteriEmail(e.target.value)}
                       placeholder="ornek@email.com"
+                      disabled={musteriSecimi === "kayitli" && secilenMusteri !== null}
                     />
                   </div>
 
