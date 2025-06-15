@@ -59,8 +59,14 @@ export async function POST(request: NextRequest) {
 
     // Sefer bilgilerini al
     const seferQuery = `
-      SELECT s.sefer_id, s.kalkis_tarihi, s.ucret, s.aktif_mi,
-             o.koltuk_sayisi, f.firma_adi
+      SELECT s.sefer_id, s.kalkis_tarihi, s.varis_tarihi, s.ucret, s.aktif_mi,
+             o.koltuk_sayisi, f.firma_adi,
+             CASE 
+               WHEN s.varis_tarihi < NOW() THEN 'TAMAMLANDI'
+               WHEN s.kalkis_tarihi <= NOW() AND s.varis_tarihi > NOW() THEN 'DEVAM_EDIYOR'
+               WHEN s.aktif_mi = FALSE THEN 'PASIF'
+               ELSE 'BEKLEMEDE'
+             END as sefer_durumu
       FROM sefer s
       INNER JOIN otobus o ON s.otobus_id = o.otobus_id
       INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
@@ -85,7 +91,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Geçmiş sefer kontrolü
+    // Sefer durumu kontrolü
+    if (sefer.sefer_durumu === 'TAMAMLANDI') {
+      return NextResponse.json(
+        { error: 'Tamamlanan seferlere bilet satılamaz' }, 
+        { status: 400 }
+      );
+    }
+
+    if (sefer.sefer_durumu === 'DEVAM_EDIYOR') {
+      return NextResponse.json(
+        { error: 'Devam eden seferlere bilet satılamaz' }, 
+        { status: 400 }
+      );
+    }
+
+    // Geçmiş sefer kontrolü (ek güvenlik)
     const kalkisZamani = new Date(sefer.kalkis_tarihi);
     const simdikiZaman = new Date();
     if (kalkisZamani <= simdikiZaman) {

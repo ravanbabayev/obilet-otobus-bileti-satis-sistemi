@@ -15,8 +15,6 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Printer,
-  Save,
   Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,6 +36,7 @@ interface Sefer {
   varis_tarihi: string;
   ucret: number;
   bos_koltuk_sayisi: number;
+  sefer_durumu?: string;
 }
 
 interface Koltuk {
@@ -461,10 +460,16 @@ export default function YazihaneBeliletSat() {
                         <div>
                           <Button 
                             onClick={() => seferSec(sefer)} 
-                            disabled={sefer.bos_koltuk_sayisi === 0}
+                            disabled={
+                              sefer.bos_koltuk_sayisi === 0 || 
+                              sefer.sefer_durumu === 'TAMAMLANDI' || 
+                              sefer.sefer_durumu === 'DEVAM_EDIYOR'
+                            }
                             className="w-full"
                           >
-                            {sefer.bos_koltuk_sayisi === 0 ? "Dolu" : "Seç"}
+                            {sefer.bos_koltuk_sayisi === 0 ? "Dolu" : 
+                             sefer.sefer_durumu === 'TAMAMLANDI' ? "Tamamlandı" :
+                             sefer.sefer_durumu === 'DEVAM_EDIYOR' ? "Başladı" : "Seç"}
                           </Button>
                         </div>
                       </div>
@@ -736,18 +741,10 @@ export default function YazihaneBeliletSat() {
                 Bilet başarıyla satıldı ve sistem kayıtlarına eklendi.
               </p>
               
-              <div className="flex justify-center space-x-4">
+              <div className="flex justify-center">
                 <Button onClick={yeniSatis} className="bg-blue-600 hover:bg-blue-700">
                   <Plus className="h-4 w-4 mr-2" />
                   Yeni Satış
-                </Button>
-                <Button variant="outline">
-                  <Printer className="h-4 w-4 mr-2" />
-                  Bilet Yazdır
-                </Button>
-                <Button variant="outline">
-                  <Save className="h-4 w-4 mr-2" />
-                  Kaydet
                 </Button>
               </div>
             </CardContent>

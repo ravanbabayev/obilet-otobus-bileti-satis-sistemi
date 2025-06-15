@@ -33,6 +33,7 @@ interface Sefer {
   varis_saati: string;
   fiyat: number;
   aktif_mi: boolean;
+  sefer_durumu: string;
   created_at: string;
   updated_at: string;
   plaka: string;
@@ -341,6 +342,25 @@ export default function SeferYonetimi() {
     return time.substring(0, 5); // HH:MM formatına çevir
   };
 
+  const getSeferDurumBadge = (durum: string) => {
+    switch(durum) {
+      case 'TAMAMLANDI':
+        return <Badge className="bg-gray-500 text-white">Tamamlandı</Badge>;
+      case 'DEVAM_EDIYOR':
+        return <Badge className="bg-yellow-500 text-white">Devam Ediyor</Badge>;
+      case 'BEKLEMEDE':
+        return <Badge className="bg-blue-500 text-white">Beklemede</Badge>;
+      case 'PASIF':
+        return <Badge className="bg-red-500 text-white">Pasif</Badge>;
+      default:
+        return <Badge className="bg-gray-400 text-white">Bilinmiyor</Badge>;
+    }
+  };
+
+  const canEditOrDelete = (durum: string) => {
+    return durum === 'BEKLEMEDE';
+  };
+
   // Bugünün tarihi (input için)
   const today = new Date().toISOString().split('T')[0];
 
@@ -458,9 +478,7 @@ export default function SeferYonetimi() {
                           <h3 className="text-lg font-semibold text-gray-900">
                             {sefer.kalkis_il} → {sefer.varis_il}
                           </h3>
-                          <Badge variant={sefer.aktif_mi ? "default" : "secondary"}>
-                            {sefer.aktif_mi ? "Aktif" : "Pasif"}
-                          </Badge>
+                          {getSeferDurumBadge(sefer.sefer_durumu)}
                           <Badge variant="outline">
                             {sefer.firma_adi}
                           </Badge>
@@ -503,29 +521,33 @@ export default function SeferYonetimi() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditModal(sefer)}
-                          disabled={editLoading}
-                        >
-                          {editLoading ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
-                          ) : (
-                            <Edit className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedSefer(sefer);
-                            setShowDeleteModal(true);
-                          }}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canEditOrDelete(sefer.sefer_durumu) && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditModal(sefer)}
+                              disabled={editLoading}
+                            >
+                              {editLoading ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                              ) : (
+                                <Edit className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedSefer(sefer);
+                                setShowDeleteModal(true);
+                              }}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

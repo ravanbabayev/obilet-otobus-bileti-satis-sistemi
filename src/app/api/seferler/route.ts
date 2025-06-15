@@ -24,9 +24,11 @@ export async function GET(request: NextRequest) {
              let query = `
          SELECT 
            s.sefer_id,
-           DATE(s.kalkis_tarihi) as kalkis_tarihi,
+           s.kalkis_tarihi,
+           s.varis_tarihi,
+           DATE(s.kalkis_tarihi) as kalkis_tarihi_date,
            TIME(s.kalkis_tarihi) as kalkis_saati,
-           DATE(s.varis_tarihi) as varis_tarihi,
+           DATE(s.varis_tarihi) as varis_tarihi_date,
            TIME(s.varis_tarihi) as varis_saati,
            s.ucret as fiyat,
            s.aktif_mi,
@@ -40,7 +42,13 @@ export async function GET(request: NextRequest) {
            vs.il as varis_il,
            vs.ilce as varis_ilce,
            COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END) as satilan_koltuk,
-           (o.koltuk_sayisi - COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END)) as bos_koltuk
+           (o.koltuk_sayisi - COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END)) as bos_koltuk,
+           CASE 
+             WHEN s.varis_tarihi < NOW() THEN 'TAMAMLANDI'
+             WHEN s.kalkis_tarihi <= NOW() AND s.varis_tarihi > NOW() THEN 'DEVAM_EDIYOR'
+             WHEN s.aktif_mi = FALSE THEN 'PASIF'
+             ELSE 'BEKLEMEDE'
+           END as sefer_durumu
          FROM sefer s
          INNER JOIN otobus o ON s.otobus_id = o.otobus_id
          INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
