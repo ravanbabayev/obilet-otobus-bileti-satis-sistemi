@@ -15,9 +15,7 @@ export async function GET(request: NextRequest) {
         tc_kimlik_no,
         telefon,
         email,
-        adres,
-        created_at,
-        updated_at
+        created_at
       FROM musteri
       WHERE 1=1
     `;

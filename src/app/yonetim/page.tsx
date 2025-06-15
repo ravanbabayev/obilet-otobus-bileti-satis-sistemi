@@ -194,6 +194,14 @@ export default function YonetimPage() {
       stats: loading ? "Yükleniyor..." : `${stats?.araclar.aktif || 0} araç`
     },
     {
+      title: "Müşteri Yönetimi",
+      description: "Müşteri bilgilerini görüntüle ve yönet",
+      icon: Users,
+      href: "/yonetim/musteriler",
+      color: "bg-orange-500",
+      stats: loading ? "Yükleniyor..." : `${stats?.musteriler.toplam || 0} müşteri`
+    },
+    {
       title: "Raporlar",
       description: "Satış ve işletme raporları",
       icon: BarChart3,
@@ -267,10 +275,10 @@ export default function YonetimPage() {
           ))}
         </div>
 
-        {/* Quick Stats - Removed Customer Box */}
+        {/* Quick Stats */}
         <div className="mt-12">
           <h3 className="text-xl font-semibold text-gray-900 mb-6">Sistem Özeti</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center">
@@ -313,6 +321,22 @@ export default function YonetimPage() {
                     <p className="text-sm font-medium text-gray-600">Aktif Firma</p>
                     <p className="text-2xl font-bold text-gray-900">
                       {loading ? "..." : stats?.firmalar.aktif || 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="p-2 bg-indigo-100 rounded-lg">
+                    <Users className="h-6 w-6 text-indigo-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Kayıtlı Müşteri</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {loading ? "..." : stats?.musteriler.toplam || 0}
                     </p>
                   </div>
                 </div>
