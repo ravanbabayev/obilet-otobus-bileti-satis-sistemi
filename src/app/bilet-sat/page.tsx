@@ -243,9 +243,13 @@ export default function YazihaneBeliletSat() {
       const data = await response.json();
 
       if (response.ok) {
+        const biletNo = data.satilan_biletler && data.satilan_biletler.length > 0 
+          ? data.satilan_biletler[0].bilet_id 
+          : 'N/A';
+        
         toast({
           title: "Bilet Satışı Başarılı!",
-          description: `Bilet No: ${data.bilet_id}`,
+          description: `Bilet No: ${biletNo}`,
         });
         setStep(5);
       } else {

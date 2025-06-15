@@ -14,7 +14,6 @@ import {
   Search,
   Filter,
   BarChart3,
-  Settings,
   LogOut,
   User,
   AlertCircle
@@ -246,15 +245,6 @@ export default function YazihanePanel() {
               </div>
               
               <div className="flex items-center space-x-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={fetchDashboardData}
-                  disabled={loading}
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  {loading ? 'Yenileniyor...' : 'Yenile'}
-                </Button>
                 <Button variant="outline" size="sm">
                   <User className="h-4 w-4 mr-2" />
                   Yetkili: Admin
