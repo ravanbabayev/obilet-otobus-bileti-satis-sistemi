@@ -14,7 +14,6 @@ import {
   FileText,
   BarChart3,
   Database,
-  UserCheck,
   Truck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,14 +50,7 @@ export default function YonetimPage() {
       color: "bg-purple-500",
       stats: "147 bilet"
     },
-    {
-      title: "Müşteri Yönetimi",
-      description: "Müşteri bilgilerini yönet",
-      icon: Users,
-      href: "/yonetim/musteriler",
-      color: "bg-orange-500",
-      stats: "89 müşteri"
-    },
+
     {
       title: "İstasyon Yönetimi",
       description: "Otobüs istasyonlarını yönet",
@@ -67,14 +59,7 @@ export default function YonetimPage() {
       color: "bg-red-500",
       stats: "45 istasyon"
     },
-    {
-      title: "Personel Yönetimi",
-      description: "Yazihane personellerini yönet",
-      icon: UserCheck,
-      href: "/yonetim/personel",
-      color: "bg-indigo-500",
-      stats: "5 personel"
-    },
+
     {
       title: "Araç Yönetimi",
       description: "Otobüs araçlarını yönet",
