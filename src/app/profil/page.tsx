@@ -144,9 +144,14 @@ export default function ProfilPage() {
 
   // Saat formatı
   const formatSaat = (dateString: string) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    return format(date, "HH:mm");
+    if (!dateString) return "--:--";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "--:--";
+      return format(date, "HH:mm");
+    } catch {
+      return "--:--";
+    }
   };
 
   // Cinsiyet formatı

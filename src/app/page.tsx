@@ -21,7 +21,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface DashboardStats {
@@ -78,10 +77,6 @@ export default function YazihanePanel() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [showResults, setShowResults] = useState(false);
-
-  // Quick trip search states
-  const [kalkis, setKalkis] = useState("");
-  const [varis, setVaris] = useState("");
 
   // Component mount olduğunda saat başlat
   useEffect(() => {
@@ -173,15 +168,6 @@ export default function YazihanePanel() {
     }
   };
 
-  const handleTripSearch = () => {
-    if (!kalkis || !varis) {
-      alert('Lütfen kalkış ve varış noktalarını seçin');
-      return;
-    }
-    // Sefer arama sayfasına yönlendir
-    window.location.href = `/seferler?kalkis=${encodeURIComponent(kalkis)}&varis=${encodeURIComponent(varis)}`;
-  };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('tr-TR', {
       style: 'currency',
@@ -263,18 +249,11 @@ export default function YazihanePanel() {
         {/* Quick Actions */}
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Hızlı İşlemler</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link href="/bilet-sat">
               <Button className="w-full h-20 bg-blue-600 hover:bg-blue-700 text-white flex flex-col items-center justify-center">
                 <Plus className="h-6 w-6 mb-2" />
                 <span className="font-semibold">Bilet Sat</span>
-              </Button>
-            </Link>
-            
-            <Link href="/seferler">
-              <Button variant="outline" className="w-full h-20 flex flex-col items-center justify-center">
-                <Search className="h-6 w-6 mb-2" />
-                <span className="font-semibold">Sefer Ara</span>
               </Button>
             </Link>
             
@@ -475,41 +454,6 @@ export default function YazihanePanel() {
                     {searchLoading ? "..." : "Ara"}
                   </Button>
                 </div>
-              </div>
-
-              <div className="pt-4 border-t">
-                <h4 className="font-medium text-gray-900 mb-3">Hızlı Sefer Arama</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <Select value={kalkis} onValueChange={setKalkis}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Kalkış" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="İstanbul">İstanbul</SelectItem>
-                      <SelectItem value="Ankara">Ankara</SelectItem>
-                      <SelectItem value="İzmir">İzmir</SelectItem>
-                      <SelectItem value="Antalya">Antalya</SelectItem>
-                      <SelectItem value="Bursa">Bursa</SelectItem>
-                      <SelectItem value="Adana">Adana</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={varis} onValueChange={setVaris}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Varış" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="İstanbul">İstanbul</SelectItem>
-                      <SelectItem value="Ankara">Ankara</SelectItem>
-                      <SelectItem value="İzmir">İzmir</SelectItem>
-                      <SelectItem value="Antalya">Antalya</SelectItem>
-                      <SelectItem value="Bursa">Bursa</SelectItem>
-                      <SelectItem value="Adana">Adana</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button className="w-full mt-3" onClick={handleTripSearch}>
-                  Seferleri Listele
-                </Button>
               </div>
             </CardContent>
           </Card>

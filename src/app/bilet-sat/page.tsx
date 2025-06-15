@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { 
   Bus, 
   ArrowLeft, 
@@ -56,6 +57,7 @@ interface Musteri {
 
 export default function YazihaneBeliletSat() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState(1);
   const [seferler, setSeferler] = useState<Sefer[]>([]);
   const [koltuklar, setKoltuklar] = useState<Koltuk[]>([]);
@@ -89,6 +91,84 @@ export default function YazihaneBeliletSat() {
   const [personelAdi, setPersonelAdi] = useState("Admin Kullanıcı");
   const [notlar, setNotlar] = useState("");
 
+  // URL'den sefer_id parametresini kontrol et ve otomatik sefer seç
+  useEffect(() => {
+    const seferId = searchParams.get('sefer_id');
+    if (seferId) {
+      console.log('Sefer ID bulundu:', seferId);
+      // Sefer detayını getir ve otomatik seç
+      fetch(`/api/seferler/${seferId}`)
+        .then(response => response.json())
+        .then(data => {
+          console.log('API Response:', data);
+          // API doğrudan sefer objesini döndürüyor, data.sefer değil
+          if (data && data.sefer_id) {
+            // Alan isimlerini bilet-sat sayfasının beklediği formata dönüştür
+            const sefer = {
+              sefer_id: data.sefer_id,
+              firma_adi: data.firma_adi,
+              kalkis_il: data.kalkis_il,
+              kalkis_istasyon_adi: data.kalkis_istasyon_adi,
+              varis_il: data.varis_il,
+              varis_istasyon_adi: data.varis_istasyon_adi,
+              kalkis_tarihi: data.kalkis_tarihi,
+              varis_tarihi: data.varis_tarihi,
+              ucret: parseFloat(data.ucret || '0'),
+              bos_koltuk_sayisi: data.koltuk_sayisi || 50, // Varsayılan olarak koltuk_sayisi kullan
+            };
+            
+            console.log('Dönüştürülmüş sefer:', sefer);
+            setSecilenSefer(sefer);
+            setStep(3); // Koltuk seçimi adımına geç
+            
+            // Koltukları yükle
+            fetch(`/api/seferler/${seferId}/koltuklar`)
+              .then(response => response.json())
+              .then(koltukData => {
+                console.log('Koltuk data:', koltukData);
+                if (Array.isArray(koltukData)) {
+                  // Koltuk durumlarını ayarla
+                  const koltukDizilimi = Array.from({ length: data.koltuk_sayisi || 50 }, (_, i) => ({
+                    koltuk_no: i + 1,
+                    durum: "bos" as const,
+                  }));
+                  
+                  // Dolu koltukları işaretle
+                  koltukData.forEach((koltuk: any) => {
+                    const index = koltuk.koltuk_no - 1;
+                    if (index >= 0 && index < koltukDizilimi.length) {
+                      koltukDizilimi[index].durum = "dolu";
+                      koltukDizilimi[index].cinsiyet = koltuk.cinsiyet;
+                    }
+                  });
+                  
+                  setKoltuklar(koltukDizilimi);
+                  console.log('Koltuklar ayarlandı:', koltukDizilimi.length);
+                }
+              })
+              .catch(error => {
+                console.error('Koltuklar yüklenirken hata:', error);
+              });
+          } else {
+            console.error('Sefer verisi bulunamadı:', data);
+            toast({
+              title: "Hata",
+              description: "Sefer verisi bulunamadı.",
+              variant: "destructive",
+            });
+          }
+        })
+        .catch(error => {
+          console.error('Sefer detayı yüklenirken hata:', error);
+          toast({
+            title: "Hata",
+            description: "Sefer detayı yüklenirken bir hata oluştu.",
+            variant: "destructive",
+          });
+        });
+    }
+  }, [searchParams, toast]);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('tr-TR', {
       style: 'currency',
@@ -105,10 +185,17 @@ export default function YazihaneBeliletSat() {
   };
 
   const formatSaat = (tarihStr: string) => {
-    return new Date(tarihStr).toLocaleTimeString('tr-TR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!tarihStr) return "--:--";
+    try {
+      const date = new Date(tarihStr);
+      if (isNaN(date.getTime())) return "--:--";
+      return date.toLocaleTimeString('tr-TR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return "--:--";
+    }
   };
 
   // Müşteri listesini yükle

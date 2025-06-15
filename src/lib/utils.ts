@@ -28,11 +28,12 @@ export function formatTime(date: Date | string): string {
 }
 
 // Para formatını düzenleyen yardımcı fonksiyon
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number | string): string {
+  const numAmount = typeof amount === 'number' ? amount : parseFloat(amount || '0');
   return new Intl.NumberFormat("tr-TR", {
     style: "currency",
     currency: "TRY",
-  }).format(amount);
+  }).format(numAmount);
 }
 
 // TC Kimlik numarası doğrulama fonksiyonu

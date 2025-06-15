@@ -22,7 +22,7 @@ interface Bilet {
   kalkis_tarihi: string;
   varis_tarihi: string;
   koltuk_no: number;
-  ucret: number;
+  ucret: number | string;
   bilet_durumu: string;
   satis_yapan_personel: string;
   bilet_tarihi: string;
@@ -187,7 +187,7 @@ export default function BiletAra() {
                         </div>
                         
                         <div className="text-right ml-6">
-                          <p className="text-2xl font-bold text-blue-600">{bilet.ucret}₺</p>
+                          <p className="text-2xl font-bold text-blue-600">{typeof bilet.ucret === 'number' ? bilet.ucret.toFixed(2) : parseFloat(bilet.ucret || '0').toFixed(2)}₺</p>
                           {bilet.bilet_durumu === 'AKTIF' && (
                             <Button 
                               variant="outline" 

@@ -22,7 +22,18 @@ export async function GET(request: NextRequest) {
         varis_il,
         tarih,
       ]);
-      return NextResponse.json(results || []);
+      
+      // Stored procedure sonuçlarını frontend'in beklediği format'a dönüştür
+      const mappedResults = (results || []).map((sefer: any) => ({
+        ...sefer,
+        kalkis_zamani: sefer.kalkis_tarihi,
+        varis_zamani: sefer.varis_tarihi,
+        kalkis_yeri: sefer.kalkis_istasyon_adi,
+        varis_yeri: sefer.varis_istasyon_adi,
+        toplam_koltuk_sayisi: sefer.koltuk_sayisi
+      }));
+      
+      return NextResponse.json(mappedResults);
     } catch (spError) {
       // Saklı yordam yoksa basit sorgu kullan
       console.log('Saklı yordam bulunamadı, basit sorgu kullanılıyor:', spError);
@@ -30,21 +41,17 @@ export async function GET(request: NextRequest) {
       const query = `
         SELECT 
           s.sefer_id,
-          s.kalkis_tarihi,
-          s.varis_tarihi,
-          DATE(s.kalkis_tarihi) as kalkis_tarihi_date,
-          TIME(s.kalkis_tarihi) as kalkis_saati,
-          DATE(s.varis_tarihi) as varis_tarihi_date,
-          TIME(s.varis_tarihi) as varis_saati,
+          s.kalkis_tarihi as kalkis_zamani,
+          s.varis_tarihi as varis_zamani,
           s.ucret,
           s.aktif_mi,
           o.plaka,
-          o.koltuk_sayisi,
+          o.koltuk_sayisi as toplam_koltuk_sayisi,
           f.firma_adi,
           ks.il as kalkis_il,
-          ks.istasyon_adi as kalkis_istasyon_adi,
+          ks.istasyon_adi as kalkis_yeri,
           vs.il as varis_il,
-          vs.istasyon_adi as varis_istasyon_adi,
+          vs.istasyon_adi as varis_yeri,
           COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END) as satilan_koltuk,
           (o.koltuk_sayisi - COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END)) as bos_koltuk_sayisi,
           CASE 
