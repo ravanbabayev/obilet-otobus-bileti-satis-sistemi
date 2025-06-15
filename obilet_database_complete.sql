@@ -865,7 +865,7 @@ BEGIN
     JOIN otobus o ON s.otobus_id = o.otobus_id
     JOIN otobus_firmasi f ON o.firma_id = f.firma_id
     JOIN istasyon ki ON s.kalkis_istasyon_id = ki.istasyon_id
-    JOIN istasyon vi ON s.varis_istasyon_id = vi.istasyon_id
+    JOIN istasyon vi ON s.varis_istasyon_id = vs.istasyon_id
     WHERE 
         b.bilet_id = p_arama_kriteri
         OR m.tc_kimlik_no = p_arama_kriteri
@@ -1386,6 +1386,374 @@ CREATE INDEX idx_istasyon_il_aktif ON istasyon(il, aktif_mi);
 -- =============================================
 -- VERİTABANI KURULUM TAMAMLANDI
 -- =============================================
+
+-- Dashboard stored procedure'ları
+DELIMITER $$
+CREATE PROCEDURE sp_dashboard_ana_istatistikler()
+BEGIN
+    SELECT 
+        COUNT(CASE WHEN DATE(b.bilet_tarihi) = CURDATE() AND b.bilet_durumu = 'AKTIF' THEN 1 END) as bugun_satilan_bilet,
+        SUM(CASE WHEN DATE(b.bilet_tarihi) = CURDATE() AND b.bilet_durumu = 'AKTIF' THEN b.ucret ELSE 0 END) as bugun_gelir,
+        COUNT(CASE WHEN s.aktif_mi = TRUE AND DATE(s.kalkis_tarihi) = CURDATE() THEN 1 END) as aktif_sefer_sayisi,
+        0 as bekleyen_musteriler
+    FROM bilet b
+    RIGHT JOIN sefer s ON b.sefer_id = s.sefer_id;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_dashboard_son_satislar()
+BEGIN
+    SELECT 
+        b.bilet_id,
+        CONCAT(m.ad, ' ', m.soyad) as musteri_adi,
+        CONCAT(ks.il, ' - ', vs.il) as sefer_bilgisi,
+        b.ucret,
+        DATE_FORMAT(b.bilet_tarihi, '%d.%m.%Y %H:%i') as satis_zamani,
+        DATE_FORMAT(b.bilet_tarihi, '%d.%m.%Y') as bilet_tarihi
+    FROM bilet b
+    INNER JOIN musteri m ON b.musteri_id = m.musteri_id
+    INNER JOIN sefer s ON b.sefer_id = s.sefer_id
+    INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
+    INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
+    WHERE b.bilet_durumu = 'AKTIF'
+    ORDER BY b.bilet_tarihi DESC
+    LIMIT 10;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_dashboard_aktiviteler()
+BEGIN
+    SELECT 
+        'bilet_satis' as tip,
+        CONCAT(m.ad, ' ', m.soyad, ' - ', ks.il, ' → ', vs.il) as aciklama,
+        b.bilet_tarihi as tarih,
+        b.ucret as tutar
+    FROM bilet b
+    INNER JOIN musteri m ON b.musteri_id = m.musteri_id
+    INNER JOIN sefer s ON b.sefer_id = s.sefer_id
+    INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
+    INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
+    WHERE b.bilet_durumu = 'AKTIF'
+    
+    UNION ALL
+    
+    SELECT 
+        'bilet_iptal' as tip,
+        CONCAT(m.ad, ' ', m.soyad, ' - Bilet İptali') as aciklama,
+        b.updated_at as tarih,
+        b.ucret as tutar
+    FROM bilet b
+    INNER JOIN musteri m ON b.musteri_id = m.musteri_id
+    WHERE b.bilet_durumu = 'IPTAL'
+    
+    ORDER BY tarih DESC
+    LIMIT 20;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_bilet_tumunu_getir(
+    IN p_search VARCHAR(255),
+    IN p_durum VARCHAR(20),
+    IN p_firma_id INT,
+    IN p_tarih DATE
+)
+BEGIN
+    SELECT 
+        b.bilet_id,
+        b.koltuk_no,
+        b.bilet_tarihi,
+        b.bilet_durumu,
+        b.ucret,
+        b.satis_yapan_personel,
+        b.notlar,
+        CONCAT(m.ad, ' ', m.soyad) as musteri_adi,
+        m.tc_kimlik_no,
+        m.telefon as musteri_telefon,
+        m.email as musteri_email,
+        CONCAT(ks.il, ' - ', vs.il) as sefer_bilgisi,
+        DATE(s.kalkis_tarihi) as kalkis_tarihi,
+        TIME(s.kalkis_tarihi) as kalkis_saati,
+        f.firma_adi,
+        o.plaka
+    FROM bilet b
+    INNER JOIN musteri m ON b.musteri_id = m.musteri_id
+    INNER JOIN sefer s ON b.sefer_id = s.sefer_id
+    INNER JOIN otobus o ON s.otobus_id = o.otobus_id
+    INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
+    INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
+    INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
+    WHERE 1=1
+        AND (p_search IS NULL OR p_search = '' OR 
+             b.bilet_id = p_search OR
+             m.ad LIKE CONCAT('%', p_search, '%') OR
+             m.soyad LIKE CONCAT('%', p_search, '%') OR
+             m.tc_kimlik_no LIKE CONCAT('%', p_search, '%') OR
+             m.telefon LIKE CONCAT('%', p_search, '%'))
+        AND (p_durum IS NULL OR p_durum = 'TUMU' OR b.bilet_durumu = p_durum)
+        AND (p_firma_id IS NULL OR p_firma_id = 0 OR f.firma_id = p_firma_id)
+        AND (p_tarih IS NULL OR DATE(b.bilet_tarihi) = p_tarih)
+    ORDER BY b.bilet_tarihi DESC;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_bilet_detay(
+    IN p_bilet_id INT
+)
+BEGIN
+    SELECT 
+        b.bilet_id,
+        b.koltuk_no,
+        b.bilet_tarihi,
+        b.bilet_durumu,
+        b.ucret,
+        b.satis_yapan_personel,
+        b.notlar,
+        CONCAT(m.ad, ' ', m.soyad) as musteri_adi,
+        m.tc_kimlik_no,
+        m.telefon as musteri_telefon,
+        m.email as musteri_email,
+        s.sefer_id,
+        s.kalkis_tarihi,
+        s.varis_tarihi,
+        ks.istasyon_adi as kalkis_istasyon,
+        vs.istasyon_adi as varis_istasyon,
+        f.firma_adi,
+        o.plaka,
+        o.model
+    FROM bilet b
+    INNER JOIN musteri m ON b.musteri_id = m.musteri_id
+    INNER JOIN sefer s ON b.sefer_id = s.sefer_id
+    INNER JOIN otobus o ON s.otobus_id = o.otobus_id
+    INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
+    INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
+    INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
+    WHERE b.bilet_id = p_bilet_id;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_bilet_iptal(
+    IN p_bilet_id INT,
+    IN p_iptal_nedeni TEXT
+)
+BEGIN
+    DECLARE v_bilet_durumu VARCHAR(10);
+    DECLARE v_sefer_tarihi DATETIME;
+    DECLARE v_error_msg VARCHAR(255);
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        GET DIAGNOSTICS CONDITION 1
+            v_error_msg = MESSAGE_TEXT;
+        SELECT 'HATA' AS durum, v_error_msg AS mesaj;
+    END;
+    
+    START TRANSACTION;
+    
+    SELECT b.bilet_durumu, s.kalkis_tarihi
+    INTO v_bilet_durumu, v_sefer_tarihi
+    FROM bilet b
+    INNER JOIN sefer s ON b.sefer_id = s.sefer_id
+    WHERE b.bilet_id = p_bilet_id;
+    
+    IF v_bilet_durumu IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Bilet bulunamadı.';
+    END IF;
+    
+    IF v_bilet_durumu != 'AKTIF' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Bu bilet zaten iptal edilmiş veya kullanılmış.';
+    END IF;
+    
+    UPDATE bilet
+    SET 
+        bilet_durumu = 'IPTAL',
+        notlar = CONCAT(IFNULL(notlar, ''), '\nİPTAL: ', NOW(), ' - ', p_iptal_nedeni),
+        updated_at = CURRENT_TIMESTAMP
+    WHERE bilet_id = p_bilet_id;
+    
+    COMMIT;
+    
+    SELECT 'BAŞARILI' AS durum, 'Bilet başarıyla iptal edildi.' AS mesaj;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_istasyon_tumunu_getir(
+    IN p_search VARCHAR(255),
+    IN p_il VARCHAR(50),
+    IN p_durum VARCHAR(20)
+)
+BEGIN
+    SELECT 
+        istasyon_id,
+        istasyon_adi,
+        il,
+        ilce,
+        adres,
+        aktif_mi,
+        created_at,
+        updated_at
+    FROM istasyon
+    WHERE 1=1
+        AND (p_search IS NULL OR p_search = '' OR 
+             istasyon_adi LIKE CONCAT('%', p_search, '%') OR
+             il LIKE CONCAT('%', p_search, '%') OR
+             ilce LIKE CONCAT('%', p_search, '%'))
+        AND (p_il IS NULL OR p_il = '' OR p_il = 'TUMU' OR il = p_il)
+        AND (p_durum IS NULL OR p_durum = 'TUMU' OR 
+             (p_durum = 'AKTIF' AND aktif_mi = TRUE) OR
+             (p_durum = 'PASIF' AND aktif_mi = FALSE))
+    ORDER BY il, ilce, istasyon_adi;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_istasyon_ekle(
+    IN p_istasyon_adi VARCHAR(100),
+    IN p_il VARCHAR(50),
+    IN p_ilce VARCHAR(50),
+    IN p_adres TEXT
+)
+BEGIN
+    DECLARE v_istasyon_id INT;
+    DECLARE v_error_msg VARCHAR(255);
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        GET DIAGNOSTICS CONDITION 1
+            v_error_msg = MESSAGE_TEXT;
+        SELECT 'HATA' AS durum, v_error_msg AS mesaj, 0 AS istasyon_id;
+    END;
+    
+    START TRANSACTION;
+    
+    IF EXISTS (SELECT 1 FROM istasyon WHERE istasyon_adi = p_istasyon_adi AND il = p_il AND aktif_mi = TRUE) THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Bu isimde bir istasyon zaten mevcut.';
+    END IF;
+    
+    INSERT INTO istasyon (istasyon_adi, il, ilce, adres, aktif_mi)
+    VALUES (p_istasyon_adi, p_il, p_ilce, p_adres, TRUE);
+    
+    SET v_istasyon_id = LAST_INSERT_ID();
+    
+    COMMIT;
+    
+    SELECT 'BAŞARILI' AS durum, 'İstasyon başarıyla eklendi.' AS mesaj, v_istasyon_id AS istasyon_id;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_musteri_tumunu_getir(
+    IN p_search VARCHAR(255)
+)
+BEGIN
+    SELECT 
+        m.musteri_id,
+        m.ad,
+        m.soyad,
+        m.tc_kimlik_no,
+        m.telefon,
+        m.email,
+        m.created_at,
+        COUNT(b.bilet_id) as toplam_bilet_sayisi,
+        COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END) as aktif_bilet_sayisi,
+        SUM(CASE WHEN b.bilet_durumu = 'AKTIF' THEN b.ucret ELSE 0 END) as toplam_harcama
+    FROM musteri m
+    LEFT JOIN bilet b ON m.musteri_id = b.musteri_id
+    WHERE 1=1
+        AND (p_search IS NULL OR p_search = '' OR 
+             m.ad LIKE CONCAT('%', p_search, '%') OR
+             m.soyad LIKE CONCAT('%', p_search, '%') OR
+             m.tc_kimlik_no LIKE CONCAT('%', p_search, '%') OR
+             m.telefon LIKE CONCAT('%', p_search, '%') OR
+             m.email LIKE CONCAT('%', p_search, '%'))
+    GROUP BY m.musteri_id
+    ORDER BY m.created_at DESC;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_hizli_arama(
+    IN p_bilet_no INT,
+    IN p_tc_kimlik VARCHAR(11),
+    IN p_telefon VARCHAR(15)
+)
+BEGIN
+    SELECT 
+        b.bilet_id,
+        b.koltuk_no,
+        b.bilet_durumu,
+        b.ucret,
+        DATE_FORMAT(b.bilet_tarihi, '%d.%m.%Y') as bilet_tarihi,
+        TIME_FORMAT(b.bilet_tarihi, '%H:%i') as bilet_saati,
+        CONCAT(m.ad, ' ', m.soyad) as musteri_adi,
+        m.tc_kimlik_no,
+        m.telefon as musteri_telefon,
+        CONCAT(ks.il, ' → ', vs.il) as sefer_bilgisi,
+        DATE_FORMAT(s.kalkis_tarihi, '%d.%m.%Y') as kalkis_tarihi,
+        TIME_FORMAT(s.kalkis_tarihi, '%H:%i') as kalkis_saati,
+        f.firma_adi,
+        o.plaka
+    FROM bilet b
+    INNER JOIN musteri m ON b.musteri_id = m.musteri_id
+    INNER JOIN sefer s ON b.sefer_id = s.sefer_id
+    INNER JOIN otobus o ON s.otobus_id = o.otobus_id
+    INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
+    INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
+    INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
+    WHERE 
+        (p_bilet_no IS NOT NULL AND b.bilet_id = p_bilet_no) OR
+        (p_tc_kimlik IS NOT NULL AND m.tc_kimlik_no = p_tc_kimlik) OR
+        (p_telefon IS NOT NULL AND m.telefon LIKE CONCAT('%', p_telefon, '%'))
+    ORDER BY b.bilet_tarihi DESC;
+END $$
+DELIMITER ;
+
+DELIMITER $$
+CREATE PROCEDURE sp_otobus_tumunu_getir_detayli(
+    IN p_search VARCHAR(255),
+    IN p_firma_id INT,
+    IN p_durum VARCHAR(20)
+)
+BEGIN
+    SELECT 
+        o.otobus_id,
+        o.plaka,
+        o.model,
+        o.koltuk_sayisi,
+        o.ozellikler,
+        o.aktif_mi,
+        o.created_at,
+        o.updated_at,
+        f.firma_id,
+        f.firma_adi,
+        COUNT(CASE WHEN s.aktif_mi = TRUE AND s.kalkis_tarihi > NOW() THEN 1 END) as aktif_sefer_sayisi,
+        COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END) as satilan_bilet_sayisi
+    FROM otobus o
+    INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
+    LEFT JOIN sefer s ON o.otobus_id = s.otobus_id
+    LEFT JOIN bilet b ON s.sefer_id = b.sefer_id
+    WHERE 1=1
+        AND (p_search IS NULL OR p_search = '' OR 
+             o.plaka LIKE CONCAT('%', p_search, '%') OR
+             f.firma_adi LIKE CONCAT('%', p_search, '%'))
+        AND (p_firma_id IS NULL OR p_firma_id = 0 OR f.firma_id = p_firma_id)
+        AND (p_durum IS NULL OR p_durum = 'TUMU' OR 
+             (p_durum = 'AKTIF' AND o.aktif_mi = TRUE) OR
+             (p_durum = 'PASIF' AND o.aktif_mi = FALSE))
+    GROUP BY o.otobus_id
+    ORDER BY f.firma_adi, o.plaka;
+END $$
+DELIMITER ;
 
 -- Kurulum bilgileri
 SELECT 

@@ -582,9 +582,9 @@ export async function POST() {
           CREATE PROCEDURE sp_dashboard_ana_istatistikler()
           BEGIN
               SELECT 
-                  COUNT(CASE WHEN DATE(b.bilet_tarihi) = CURDATE() AND b.bilet_durumu = 'AKTIF' THEN 1 END) as bugun_satilan_bilet,
-                  SUM(CASE WHEN DATE(b.bilet_tarihi) = CURDATE() AND b.bilet_durumu = 'AKTIF' THEN b.ucret ELSE 0 END) as bugun_gelir,
-                  COUNT(CASE WHEN s.aktif_mi = TRUE AND DATE(s.kalkis_tarihi) = CURDATE() THEN 1 END) as aktif_sefer_sayisi,
+                  COUNT(CASE WHEN b.bilet_durumu = 'AKTIF' THEN 1 END) as bugun_satilan_bilet,
+                  SUM(CASE WHEN b.bilet_durumu = 'AKTIF' THEN b.ucret ELSE 0 END) as bugun_gelir,
+                  COUNT(CASE WHEN s.aktif_mi = TRUE AND s.kalkis_tarihi > NOW() THEN 1 END) as aktif_sefer_sayisi,
                   0 as bekleyen_musteriler
               FROM bilet b
               RIGHT JOIN sefer s ON b.sefer_id = s.sefer_id;
