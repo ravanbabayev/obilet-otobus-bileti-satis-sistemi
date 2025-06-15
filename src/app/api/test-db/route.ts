@@ -57,6 +57,195 @@ export async function POST() {
   try {
     const procedures = [
       {
+        name: 'sp_bilet_tumunu_getir',
+        sql: `
+          CREATE PROCEDURE sp_bilet_tumunu_getir(
+              IN p_search VARCHAR(255),
+              IN p_durum VARCHAR(20),
+              IN p_firma_id INT,
+              IN p_tarih DATE
+          )
+          BEGIN
+              SELECT
+                b.bilet_id,
+                b.musteri_id,
+                b.sefer_id,
+                b.koltuk_no,
+                DATE(b.bilet_tarihi) as bilet_tarihi,
+                TIME(b.bilet_tarihi) as bilet_saati,
+                b.bilet_durumu,
+                b.ucret,
+                b.satis_yapan_personel,
+                b.notlar,
+                b.created_at,
+                b.updated_at,
+                m.ad as musteri_ad,
+                m.soyad as musteri_soyad,
+                m.tc_kimlik_no,
+                m.telefon as musteri_telefon,
+                m.email as musteri_email,
+                DATE(s.kalkis_tarihi) as kalkis_tarihi,
+                TIME(s.kalkis_tarihi) as kalkis_saati,
+                DATE(s.varis_tarihi) as varis_tarihi,
+                TIME(s.varis_tarihi) as varis_saati,
+                o.plaka,
+                f.firma_adi,
+                ks.istasyon_adi as kalkis_istasyon,
+                ks.il as kalkis_il,
+                ks.ilce as kalkis_ilce,
+                vs.istasyon_adi as varis_istasyon,
+                vs.il as varis_il,
+                vs.ilce as varis_ilce
+              FROM bilet b
+              INNER JOIN musteri m ON b.musteri_id = m.musteri_id
+              INNER JOIN sefer s ON b.sefer_id = s.sefer_id
+              INNER JOIN otobus o ON s.otobus_id = o.otobus_id
+              INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
+              INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
+              INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
+              WHERE 1=1
+                AND (p_search IS NULL OR p_search = '' OR 
+                     m.ad LIKE CONCAT('%', p_search, '%') OR
+                     m.soyad LIKE CONCAT('%', p_search, '%') OR
+                     m.tc_kimlik_no LIKE CONCAT('%', p_search, '%') OR
+                     o.plaka LIKE CONCAT('%', p_search, '%') OR
+                     f.firma_adi LIKE CONCAT('%', p_search, '%') OR
+                     ks.il LIKE CONCAT('%', p_search, '%') OR
+                     vs.il LIKE CONCAT('%', p_search, '%'))
+                AND (p_durum IS NULL OR p_durum = 'TUMU' OR b.bilet_durumu = p_durum)
+                AND (p_firma_id IS NULL OR p_firma_id = 0 OR f.firma_id = p_firma_id)
+                AND (p_tarih IS NULL OR DATE(b.bilet_tarihi) = p_tarih)
+              ORDER BY b.bilet_tarihi DESC, b.bilet_id DESC;
+          END`
+      },
+      {
+        name: 'sp_bilet_detay',
+        sql: `
+          CREATE PROCEDURE sp_bilet_detay(
+              IN p_bilet_id INT
+          )
+          BEGIN
+              SELECT
+                b.bilet_id,
+                b.musteri_id,
+                b.sefer_id,
+                b.koltuk_no,
+                b.bilet_tarihi,
+                b.bilet_durumu,
+                b.ucret,
+                b.satis_yapan_personel,
+                b.notlar,
+                b.created_at,
+                b.updated_at,
+                m.ad as musteri_ad,
+                m.soyad as musteri_soyad,
+                m.tc_kimlik_no,
+                m.telefon as musteri_telefon,
+                m.email as musteri_email,
+                s.kalkis_tarihi,
+                s.varis_tarihi,
+                s.ucret as sefer_ucret,
+                o.plaka,
+                o.model,
+                o.koltuk_sayisi,
+                f.firma_adi,
+                f.telefon as firma_telefon,
+                ks.istasyon_adi as kalkis_istasyon,
+                ks.il as kalkis_il,
+                ks.ilce as kalkis_ilce,
+                ks.adres as kalkis_adres,
+                vs.istasyon_adi as varis_istasyon,
+                vs.il as varis_il,
+                vs.ilce as varis_ilce,
+                vs.adres as varis_adres,
+                od.odeme_id,
+                od.tutar as odeme_tutar,
+                od.odeme_tarihi,
+                od.odeme_turu,
+                od.durum as odeme_durum
+              FROM bilet b
+              INNER JOIN musteri m ON b.musteri_id = m.musteri_id
+              INNER JOIN sefer s ON b.sefer_id = s.sefer_id
+              INNER JOIN otobus o ON s.otobus_id = o.otobus_id
+              INNER JOIN otobus_firmasi f ON o.firma_id = f.firma_id
+              INNER JOIN istasyon ks ON s.kalkis_istasyon_id = ks.istasyon_id
+              INNER JOIN istasyon vs ON s.varis_istasyon_id = vs.istasyon_id
+              LEFT JOIN odeme od ON b.bilet_id = od.bilet_id
+              WHERE b.bilet_id = p_bilet_id;
+          END`
+      },
+      {
+        name: 'sp_bilet_iptal',
+        sql: `
+          CREATE PROCEDURE sp_bilet_iptal(
+              IN p_bilet_id INT
+          )
+          BEGIN
+              DECLARE v_bilet_durumu VARCHAR(10);
+              DECLARE v_sefer_tarihi DATETIME;
+              DECLARE v_iptal_suresi INT;
+              DECLARE v_ucret DECIMAL(10,2);
+              DECLARE v_error_msg VARCHAR(255);
+              
+              DECLARE EXIT HANDLER FOR SQLEXCEPTION
+              BEGIN
+                  ROLLBACK;
+                  GET DIAGNOSTICS CONDITION 1
+                      v_error_msg = MESSAGE_TEXT;
+                  SELECT 'HATA' AS durum, v_error_msg AS mesaj;
+              END;
+              
+              START TRANSACTION;
+              
+              SELECT b.bilet_durumu, s.kalkis_tarihi, b.ucret
+              INTO v_bilet_durumu, v_sefer_tarihi, v_ucret
+              FROM bilet b
+              JOIN sefer s ON b.sefer_id = s.sefer_id
+              WHERE b.bilet_id = p_bilet_id;
+              
+              IF v_bilet_durumu IS NULL THEN
+                  SIGNAL SQLSTATE '45000'
+                  SET MESSAGE_TEXT = 'Bilet bulunamadı.';
+              END IF;
+              
+              IF v_bilet_durumu != 'AKTIF' THEN
+                  SIGNAL SQLSTATE '45000'
+                  SET MESSAGE_TEXT = 'Bu bilet zaten iptal edilmiş veya kullanılmış.';
+              END IF;
+              
+              SET v_iptal_suresi = TIMESTAMPDIFF(HOUR, NOW(), v_sefer_tarihi);
+              
+              IF v_iptal_suresi < 2 THEN
+                  SIGNAL SQLSTATE '45000'
+                  SET MESSAGE_TEXT = 'Kalkıştan 2 saat önceye kadar iptal edilebilir.';
+              END IF;
+              
+              UPDATE bilet
+              SET 
+                  bilet_durumu = 'IPTAL',
+                  notlar = CONCAT(IFNULL(notlar, ''), '\\nİPTAL EDİLDİ: ', NOW())
+              WHERE bilet_id = p_bilet_id;
+              
+              INSERT INTO odeme (
+                  bilet_id,
+                  tutar,
+                  odeme_turu,
+                  durum,
+                  aciklama
+              ) VALUES (
+                  p_bilet_id,
+                  v_ucret,
+                  'NAKİT',
+                  'İADE',
+                  'Bilet iptali nedeniyle iade'
+              );
+              
+              COMMIT;
+              
+              SELECT 'BAŞARILI' AS durum, 'Bilet başarıyla iptal edildi.' AS mesaj;
+          END`
+      },
+      {
         name: 'sp_sefer_tumunu_getir',
         sql: `
           CREATE PROCEDURE sp_sefer_tumunu_getir(

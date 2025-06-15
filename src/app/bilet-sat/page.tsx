@@ -221,7 +221,7 @@ export default function YazihaneBeliletSat() {
 
     setLoading(true);
     try {
-      const response = await fetch('/api/bilet-sat', {
+      const response = await fetch('/api/biletler/satin-al', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
