@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     try {
       // Önce saklı yordamı dene
       const results = await executeStoredProcedure('sp_sefer_tumunu_getir', [
-        search, durum, firma_id, tarih
+        search, durum, firma_id, tarih || null
       ]);
       return NextResponse.json(results || []);
     } catch (spError) {

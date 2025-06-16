@@ -4,7 +4,12 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q');
+    
+    // Farklı parametre isimlerini destekle
+    const query = searchParams.get('q') || 
+                  searchParams.get('bilet_no') || 
+                  searchParams.get('tc_kimlik') || 
+                  searchParams.get('telefon') || '';
 
     if (!query || query.trim().length === 0) {
       return NextResponse.json(
@@ -21,7 +26,7 @@ export async function GET(request: NextRequest) {
     if (/^\d+$/.test(query)) {
       try {
         const biletResults = await executeStoredProcedure('sp_hizli_arama', [
-          query, null, null
+          parseInt(query), null, null
         ]);
         if (Array.isArray(biletResults) && biletResults.length > 0) {
           results = biletResults;
@@ -60,12 +65,20 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('Hızlı arama sonucu:', results.length, 'kayıt bulundu');
-    return NextResponse.json(results);
+    
+    // Frontend'in beklediği format: { success: true, data: [...] }
+    return NextResponse.json({
+      success: true,
+      data: results
+    });
 
   } catch (error: any) {
     console.error('Hızlı arama hatası:', error);
     return NextResponse.json(
-      { error: 'Arama sırasında bir hata oluştu' },
+      { 
+        success: false,
+        error: 'Arama sırasında bir hata oluştu' 
+      },
       { status: 500 }
     );
   }

@@ -299,11 +299,11 @@ export default function SeferYonetimi() {
           otobus_id: detailedSefer.otobus_id?.toString() || "",
           kalkis_istasyon_id: detailedSefer.kalkis_istasyon_id?.toString() || "",
           varis_istasyon_id: detailedSefer.varis_istasyon_id?.toString() || "",
-          kalkis_tarihi: detailedSefer.kalkis_tarihi,
-          kalkis_saati: detailedSefer.kalkis_saati,
-          varis_tarihi: detailedSefer.varis_tarihi,
-          varis_saati: detailedSefer.varis_saati,
-          fiyat: detailedSefer.fiyat.toString()
+          kalkis_tarihi: detailedSefer.kalkis_tarihi_date ? new Date(detailedSefer.kalkis_tarihi_date).toISOString().split('T')[0] : "",
+          kalkis_saati: detailedSefer.kalkis_saati ? detailedSefer.kalkis_saati.substring(0, 5) : "",
+          varis_tarihi: detailedSefer.varis_tarihi_date ? new Date(detailedSefer.varis_tarihi_date).toISOString().split('T')[0] : "",
+          varis_saati: detailedSefer.varis_saati ? detailedSefer.varis_saati.substring(0, 5) : "",
+          fiyat: detailedSefer.fiyat?.toString() || ""
         };
         console.log('Form verisi ayarlanıyor:', formDataToSet);
         setFormData(formDataToSet);
@@ -335,14 +335,21 @@ export default function SeferYonetimi() {
 
   // Tarih ve saat formatlama
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('tr-TR');
+    if (!date) return '--/--/----';
+    try {
+      return new Date(date).toLocaleDateString('tr-TR');
+    } catch {
+      return '--/--/----';
+    }
   };
 
   const formatTime = (time: string) => {
+    if (!time) return '--:--';
     return time.substring(0, 5); // HH:MM formatına çevir
   };
 
-  const getSeferDurumBadge = (durum: string) => {
+  const getSeferDurumBadge = (sefer: Sefer) => {
+    const durum = sefer.sefer_durumu || calculateSeferDurumu(sefer);
     switch(durum) {
       case 'TAMAMLANDI':
         return <Badge className="bg-gray-500 text-white">Tamamlandı</Badge>;
@@ -357,7 +364,19 @@ export default function SeferYonetimi() {
     }
   };
 
-  const canEditOrDelete = (durum: string) => {
+  const calculateSeferDurumu = (sefer: Sefer) => {
+    const now = new Date();
+    const kalkisDateTime = new Date(sefer.kalkis_tarihi);
+    const varisDateTime = new Date(sefer.varis_tarihi);
+    
+    if (varisDateTime < now) return 'TAMAMLANDI';
+    if (kalkisDateTime <= now && varisDateTime > now) return 'DEVAM_EDIYOR';
+    if (!sefer.aktif_mi) return 'PASIF';
+    return 'BEKLEMEDE';
+  };
+
+  const canEditOrDelete = (sefer: Sefer) => {
+    const durum = sefer.sefer_durumu || calculateSeferDurumu(sefer);
     return durum === 'BEKLEMEDE';
   };
 
@@ -478,7 +497,7 @@ export default function SeferYonetimi() {
                           <h3 className="text-lg font-semibold text-gray-900">
                             {sefer.kalkis_il} → {sefer.varis_il}
                           </h3>
-                          {getSeferDurumBadge(sefer.sefer_durumu)}
+                          {getSeferDurumBadge(sefer)}
                           <Badge variant="outline">
                             {sefer.firma_adi}
                           </Badge>
@@ -521,7 +540,7 @@ export default function SeferYonetimi() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {canEditOrDelete(sefer.sefer_durumu) && (
+                        {canEditOrDelete(sefer) && (
                           <>
                             <Button
                               variant="outline"

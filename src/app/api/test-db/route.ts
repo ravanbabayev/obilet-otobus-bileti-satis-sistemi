@@ -592,6 +592,43 @@ export async function POST() {
         `
       },
       {
+        name: 'sp_sefer_detay',
+        sql: `
+          CREATE PROCEDURE sp_sefer_detay(
+              IN p_sefer_id INT
+          )
+          BEGIN
+              SELECT 
+                  s.sefer_id,
+                  s.otobus_id,
+                  o.plaka,
+                  o.model,
+                  o.ozellikler,
+                  f.firma_adi,
+                  s.kalkis_istasyon_id,
+                  ki.istasyon_adi AS kalkis_istasyon_adi,
+                  ki.il AS kalkis_il,
+                  ki.adres AS kalkis_adres,
+                  s.varis_istasyon_id,
+                  vi.istasyon_adi AS varis_istasyon_adi,
+                  vi.il AS varis_il,
+                  vi.adres AS varis_adres,
+                  DATE(s.kalkis_tarihi) as kalkis_tarihi_date,
+                  TIME(s.kalkis_tarihi) as kalkis_saati,
+                  DATE(s.varis_tarihi) as varis_tarihi_date,
+                  TIME(s.varis_tarihi) as varis_saati,
+                  s.ucret,
+                  o.koltuk_sayisi
+              FROM sefer s
+              JOIN otobus o ON s.otobus_id = o.otobus_id
+              JOIN otobus_firmasi f ON o.firma_id = f.firma_id
+              JOIN istasyon ki ON s.kalkis_istasyon_id = ki.istasyon_id
+              JOIN istasyon vi ON s.varis_istasyon_id = vi.istasyon_id
+              WHERE s.sefer_id = p_sefer_id;
+          END
+        `
+      },
+      {
         name: 'sp_dashboard_son_satislar',
         sql: `
           CREATE PROCEDURE sp_dashboard_son_satislar()

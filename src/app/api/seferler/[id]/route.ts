@@ -36,9 +36,11 @@ export async function GET(
              const query = `
          SELECT 
            s.sefer_id,
-           DATE(s.kalkis_tarihi) as kalkis_tarihi,
+           s.kalkis_tarihi,
+           s.varis_tarihi,
+           DATE(s.kalkis_tarihi) as kalkis_tarihi_date,
            TIME(s.kalkis_tarihi) as kalkis_saati,
-           DATE(s.varis_tarihi) as varis_tarihi,
+           DATE(s.varis_tarihi) as varis_tarihi_date,
            TIME(s.varis_tarihi) as varis_saati,
            s.ucret as fiyat,
            s.aktif_mi,
